@@ -1,0 +1,25 @@
+node_modules/
+references/
+dist/
+
+# Large generated pet/image artifacts
+hatch-runs/
+
+# Local build resources and packaging leftovers
+build/
+*.blockmap
+builder-debug.yml
+builder-effective-config.yaml
+
+# Logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# OS / editor noise
+.DS_Store
+Thumbs.db
+desktop.ini
+.vscode/
+.idea/
