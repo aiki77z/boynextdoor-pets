@@ -497,6 +497,10 @@ function render() {
 petButton.addEventListener("click", () => {
   if (Date.now() < suppressPetClickUntil) return;
   if (state.companionMode) return;
+  window.clearTimeout(controlsHoverTimer);
+  state.controlsOpen = true;
+  state.controlsHoverOpen = false;
+  renderShellControls();
   cycleBubble(1);
   activateAction("waving");
 });
@@ -689,15 +693,18 @@ petCluster.addEventListener("mouseenter", () => {
 });
 
 petCluster.addEventListener("mouseleave", () => {
+  if (state.controlsOpen) return;
   controlsHoverTimer = window.setTimeout(() => setControlsHoverOpen(false), 180);
 });
 
 actionBar.addEventListener("mouseenter", () => {
   if (state.companionMode) return;
+  if (state.controlsOpen) return;
   setControlsHoverOpen(true);
 });
 
 actionBar.addEventListener("mouseleave", () => {
+  if (state.controlsOpen) return;
   controlsHoverTimer = window.setTimeout(() => setControlsHoverOpen(false), 180);
 });
 
