@@ -4,7 +4,7 @@ const path = require("path");
 
 const WINDOW_STATE_FILE = "window-state.json";
 const COMPACT_SIZE = { width: 280, height: 360 };
-const EXPANDED_SIZE = { width: 860, height: 620 };
+const PET_SCALE_LIMITS = { min: 0.35, max: 1 };
 const PET_OPTIONS = [
   { id: "catbbi", label: "Catbbi" },
   { id: "dalring", label: "Dalring" },
@@ -18,6 +18,7 @@ let mainWindow = null;
 let tray = null;
 let isQuitting = false;
 let currentState = null;
+let dragSession = null;
 
 function getPackagedIconPath() {
   return path.join(process.resourcesPath, "icon.ico");
@@ -48,11 +49,11 @@ function defaultState() {
   return {
     width: COMPACT_SIZE.width,
     height: COMPACT_SIZE.height,
-    detailsOpen: false,
     alwaysOnTop: true,
     openAtLogin: true,
     selectedPetId: "catbbi",
-    bubbleEnabled: true
+    bubbleEnabled: true,
+    petScale: 1
   };
 }
 
@@ -74,7 +75,6 @@ function syncBoundsIntoState(window) {
     y: bounds.y,
     width: bounds.width,
     height: bounds.height,
-    detailsOpen: bounds.width > COMPACT_SIZE.width + 80,
     alwaysOnTop: window.isAlwaysOnTop()
   };
 }
@@ -156,16 +156,86 @@ function showWindow() {
 
 function hideWindow() {
   if (!mainWindow) return;
+  stopWindowDrag();
   writeWindowState(mainWindow);
   mainWindow.hide();
+}
+
+function clampPetScale(scale) {
+  const value = Number(scale);
+  if (!Number.isFinite(value)) return 1;
+  return Math.min(PET_SCALE_LIMITS.max, Math.max(PET_SCALE_LIMITS.min, value));
+}
+
+function getWindowSizeForPetScale(scale) {
+  const normalizedScale = clampPetScale(scale);
+  const petWidth = 220 * normalizedScale;
+  const petHeight = petWidth / 0.92;
+  return {
+    width: Math.max(214, Math.round(petWidth + 64)),
+    height: Math.max(410, Math.round(petHeight + 330))
+  };
+}
+
+function setPetScale(scale) {
+  if (!mainWindow || mainWindow.isDestroyed()) return;
+  currentState.petScale = clampPetScale(scale);
+  const target = getWindowSizeForPetScale(currentState.petScale);
+  const bounds = mainWindow.getBounds();
+  if (target.width >= bounds.width || target.height >= bounds.height) {
+    mainWindow.setMaximumSize(target.width, target.height);
+    mainWindow.setMinimumSize(target.width, target.height);
+  } else {
+    mainWindow.setMinimumSize(target.width, target.height);
+    mainWindow.setMaximumSize(target.width, target.height);
+  }
+  mainWindow.setBounds({
+    x: bounds.x,
+    y: bounds.y + bounds.height - target.height,
+    width: target.width,
+    height: target.height
+  });
+  writeWindowState(mainWindow);
+}
+
+function stopWindowDrag() {
+  if (!dragSession) return;
+  clearInterval(dragSession.timer);
+  dragSession = null;
+  writeWindowState(mainWindow);
+}
+
+function startWindowDrag() {
+  if (!mainWindow || mainWindow.isDestroyed()) return false;
+  stopWindowDrag();
+
+  const cursor = screen.getCursorScreenPoint();
+  const bounds = mainWindow.getBounds();
+  dragSession = {
+    cursor,
+    bounds,
+    timer: setInterval(() => {
+      if (!mainWindow || mainWindow.isDestroyed() || !dragSession) {
+        stopWindowDrag();
+        return;
+      }
+
+      const nextCursor = screen.getCursorScreenPoint();
+      mainWindow.setPosition(
+        dragSession.bounds.x + nextCursor.x - dragSession.cursor.x,
+        dragSession.bounds.y + nextCursor.y - dragSession.cursor.y
+      );
+    }, 16)
+  };
+
+  return true;
 }
 
 function resetWindowPosition() {
   if (!mainWindow) return;
   const display = screen.getDisplayNearestPoint(screen.getCursorScreenPoint());
   const { workArea } = display;
-  const width = currentState.detailsOpen ? EXPANDED_SIZE.width : COMPACT_SIZE.width;
-  const height = currentState.detailsOpen ? EXPANDED_SIZE.height : COMPACT_SIZE.height;
+  const { width, height } = getWindowSizeForPetScale(currentState.petScale);
   const x = Math.round(workArea.x + workArea.width - width - 48);
   const y = Math.round(workArea.y + workArea.height - height - 64);
   mainWindow.setBounds({ x, y, width, height });
@@ -236,16 +306,17 @@ function createTray() {
 
 function createMainWindow() {
   currentState = readWindowState();
+  const initialSize = getWindowSizeForPetScale(currentState.petScale);
 
   const window = new BrowserWindow({
     x: currentState.x,
     y: currentState.y,
-    width: currentState.detailsOpen ? EXPANDED_SIZE.width : COMPACT_SIZE.width,
-    height: currentState.detailsOpen ? EXPANDED_SIZE.height : COMPACT_SIZE.height,
-    minWidth: COMPACT_SIZE.width,
-    minHeight: COMPACT_SIZE.height,
-    maxWidth: EXPANDED_SIZE.width,
-    maxHeight: EXPANDED_SIZE.height,
+    width: initialSize.width,
+    height: initialSize.height,
+    minWidth: initialSize.width,
+    minHeight: initialSize.height,
+    maxWidth: initialSize.width,
+    maxHeight: initialSize.height,
     transparent: true,
     frame: false,
     hasShadow: false,
@@ -274,7 +345,6 @@ function createMainWindow() {
     }
     window.show();
     sendShellSettings();
-    window.webContents.send("shell:details-open", currentState.detailsOpen);
     window.webContents.send("pet:selected", { petId: currentState.selectedPetId });
     window.webContents.send("shell:bubbles-enabled", currentState.bubbleEnabled);
   });
@@ -290,6 +360,7 @@ function createMainWindow() {
   });
 
   window.on("move", () => writeWindowState(window));
+  window.on("blur", () => stopWindowDrag());
   window.on("show", () => sendShellSettings());
 
   window.webContents.setWindowOpenHandler(({ url }) => {
@@ -310,20 +381,18 @@ ipcMain.handle("shell:toggle-always-on-top", () => {
   return { alwaysOnTop: next };
 });
 
-ipcMain.handle("shell:set-details-open", (_event, detailsOpen) => {
-  if (!mainWindow) return { detailsOpen: false };
-  currentState.detailsOpen = Boolean(detailsOpen);
-  const target = currentState.detailsOpen ? EXPANDED_SIZE : COMPACT_SIZE;
-  const bounds = mainWindow.getBounds();
-  mainWindow.setBounds({
-    x: bounds.x,
-    y: bounds.y,
-    width: target.width,
-    height: target.height
-  });
-  writeWindowState(mainWindow);
-  refreshTrayMenu();
-  return { detailsOpen: currentState.detailsOpen };
+ipcMain.handle("shell:set-pet-scale", (_event, scale) => {
+  setPetScale(scale);
+  return { petScale: currentState.petScale };
+});
+
+ipcMain.handle("shell:start-window-drag", () => {
+  return { ok: startWindowDrag() };
+});
+
+ipcMain.handle("shell:stop-window-drag", () => {
+  stopWindowDrag();
+  return { ok: true };
 });
 
 ipcMain.handle("shell:hide-window", () => {
