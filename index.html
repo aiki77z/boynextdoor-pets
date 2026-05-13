@@ -27,6 +27,8 @@
           <button class="shell-button" id="nextPetButton" type="button" title="Next Pet" aria-label="Next Pet">🐾</button>
           <button class="shell-button" id="scaleButton" type="button" title="Scale Pet" aria-label="Scale Pet">🔍</button>
           <button class="shell-button" id="editBubbleButton" type="button" title="Edit Bubble Text" aria-label="Edit Bubble Text">✏️</button>
+          <button class="shell-button" id="aiSettingsButton" type="button" title="AI Settings" aria-label="AI Settings">AI</button>
+          <button class="shell-button" id="aiChatButton" type="button" title="AI Chat" aria-label="AI Chat" disabled>☁</button>
           <button class="shell-button" id="bubbleToggleButton" type="button" title="Toggle Bubbles" aria-label="Toggle Bubbles">🗨️</button>
           <button class="shell-button" id="companionButton" type="button" title="Companion Mode" aria-label="Companion Mode">♡</button>
           <button class="shell-button" id="pinButton" type="button" title="Always On Top" aria-label="Always On Top">📌</button>
@@ -71,6 +73,70 @@
           <button class="editor-button" id="resetBubbleButton" type="button">Restore Default</button>
           <button class="editor-button" id="cancelBubbleEditorButton" type="button">Cancel</button>
         </div>
+      </section>
+    </div>
+
+    <div class="chat-panel-modal" id="chatPanelModal" aria-hidden="true">
+      <div class="chat-panel-backdrop" id="chatPanelBackdrop"></div>
+      <section class="chat-panel-dialog" aria-label="AI Settings">
+        <div class="chat-panel-header">
+          <div>
+            <h2>AI Settings</h2>
+            <p id="chatPanelSubtitle">DeepSeek model settings</p>
+          </div>
+          <button class="editor-button" id="closeChatPanelButton" type="button">Close</button>
+        </div>
+
+        <div class="chat-settings-grid">
+          <label class="chat-field">
+            <span>Enable AI</span>
+            <input id="chatEnabledInput" type="checkbox">
+          </label>
+          <label class="chat-field">
+            <span>Model</span>
+            <input id="chatModelInput" type="text" maxlength="60" placeholder="deepseek-chat">
+          </label>
+          <label class="chat-field chat-field-wide">
+            <span>Base URL</span>
+            <input id="chatBaseUrlInput" type="url" maxlength="120" placeholder="https://api.deepseek.com">
+          </label>
+          <label class="chat-field chat-field-wide">
+            <span>API Key</span>
+            <input id="chatApiKeyInput" type="password" maxlength="160" placeholder="Enable AI 时填写，留空则保留当前 Key">
+          </label>
+        </div>
+
+        <div class="chat-settings-actions">
+          <button class="editor-button" id="saveChatSettingsButton" type="button">Save Settings</button>
+          <span class="chat-settings-hint" id="chatSettingsHint"></span>
+        </div>
+      </section>
+    </div>
+
+    <div class="chat-window-modal" id="chatWindowModal" aria-hidden="true">
+      <div class="chat-window-backdrop" id="chatWindowBackdrop"></div>
+      <section class="chat-window-dialog" aria-label="Pet Chat">
+        <div class="chat-window-header">
+          <div>
+            <h2 id="chatWindowTitle">Pet Chat</h2>
+            <p id="chatWindowSubtitle">recent memory 0</p>
+          </div>
+          <div class="chat-window-actions">
+            <button class="editor-button" id="clearChatMemoryButton" type="button">Clear</button>
+            <button class="editor-button" id="closeChatWindowButton" type="button">Close</button>
+          </div>
+        </div>
+        <div class="chat-history" id="chatHistory" aria-live="polite"></div>
+        <form class="chat-compose" id="chatComposeForm">
+          <label class="chat-field chat-field-wide" for="chatInput">
+            <span>Message</span>
+            <textarea id="chatInput" maxlength="100" rows="3" placeholder="输入不超过 100 字"></textarea>
+          </label>
+          <div class="chat-compose-footer">
+            <span class="chat-counter" id="chatCounter">0 / 100</span>
+            <button class="editor-button" id="sendChatButton" type="submit">Send</button>
+          </div>
+        </form>
       </section>
     </div>
 

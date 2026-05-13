@@ -102,6 +102,12 @@ button {
   color: #8d3144;
 }
 
+.shell-button:disabled {
+  cursor: default;
+  filter: grayscale(1);
+  opacity: 0.42;
+}
+
 .pet-room {
   position: relative;
   display: grid;
@@ -231,7 +237,7 @@ body.companion-mode .pet-cluster:hover .pet-nameplate {
   display: grid;
   grid-template-columns: repeat(5, minmax(0, 1fr));
   gap: 6px;
-  width: 188px;
+  width: 226px;
   padding: 6px;
   border-radius: 18px;
   background: rgba(255, 255, 255, 0.82);
@@ -248,6 +254,8 @@ body.controls-visible .action-bar {
 }
 
 body.bubble-editor-open .action-bar,
+body.chat-panel-open .action-bar,
+body.chat-window-open .action-bar,
 body.companion-mode .action-bar,
 body.companion-mode.controls-visible .action-bar {
   opacity: 0;
@@ -265,6 +273,93 @@ body.companion-mode.controls-visible .action-bar {
   pointer-events: none;
   opacity: 0;
   transition: opacity 180ms ease;
+}
+
+.chat-panel-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 30;
+  display: grid;
+  place-items: center;
+  padding: 16px;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 180ms ease;
+}
+
+.chat-window-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 30;
+  display: grid;
+  place-items: center;
+  padding: 14px;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 180ms ease;
+}
+
+body.chat-panel-open .chat-panel-modal {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+body.chat-window-open .chat-window-modal {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.chat-panel-backdrop {
+  position: absolute;
+  inset: 0;
+  background: transparent;
+}
+
+.chat-window-backdrop {
+  position: absolute;
+  inset: 0;
+  background: transparent;
+}
+
+.chat-panel-dialog {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  gap: 14px;
+  width: min(400px, calc(100vw - 28px));
+  max-height: calc(100vh - 28px);
+  padding: 18px;
+  overflow: hidden;
+  border-radius: 24px;
+  border: 1px solid rgba(87, 71, 53, 0.12);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.98) 0%, rgba(247, 241, 232, 0.98) 100%);
+  transform: translateY(14px) scale(0.98);
+  transition: transform 180ms ease;
+}
+
+.chat-window-dialog {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  gap: 12px;
+  width: min(332px, calc(100vw - 24px));
+  height: min(456px, calc(100vh - 24px));
+  padding: 14px;
+  overflow: hidden;
+  border-radius: 22px;
+  border: 1px solid rgba(87, 71, 53, 0.12);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.98) 0%, rgba(247, 241, 232, 0.98) 100%);
+  transform: translateY(12px) scale(0.98);
+  transition: transform 180ms ease;
+}
+
+body.chat-panel-open .chat-panel-dialog {
+  transform: translateY(0) scale(1);
+}
+
+body.chat-window-open .chat-window-dialog {
+  transform: translateY(0) scale(1);
 }
 
 body.bubble-editor-open .bubble-editor-modal {
@@ -299,6 +394,49 @@ body.bubble-editor-open .bubble-editor-dialog {
   margin: 0;
   font-size: 20px;
   line-height: 1.1;
+}
+
+.chat-panel-header {
+  display: flex;
+  align-items: start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.chat-window-header {
+  display: flex;
+  align-items: start;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.chat-window-actions {
+  display: flex;
+  gap: 6px;
+}
+
+.chat-panel-header h2 {
+  margin: 0;
+  font-size: 20px;
+  line-height: 1.1;
+}
+
+.chat-window-header h2 {
+  margin: 0;
+  font-size: 17px;
+  line-height: 1.1;
+}
+
+.chat-panel-header p {
+  margin: 5px 0 0;
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.chat-window-header p {
+  margin: 4px 0 0;
+  color: var(--muted);
+  font-size: 10px;
 }
 
 .action-button {
@@ -450,6 +588,129 @@ body.dragging-pet .pet-canvas {
   justify-content: flex-end;
 }
 
+.chat-settings-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.chat-field {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+}
+
+.chat-field-wide {
+  grid-column: 1 / -1;
+}
+
+.chat-field span {
+  color: var(--muted);
+  font-size: 10px;
+  font-weight: 700;
+}
+
+.chat-field input,
+.chat-field textarea {
+  width: 100%;
+  min-width: 0;
+  min-height: 34px;
+  padding: 9px 11px;
+  border: 1px solid rgba(87, 71, 53, 0.12);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.92);
+  color: var(--ink);
+  font: inherit;
+  font-size: 12px;
+  resize: none;
+}
+
+.chat-field input[type="checkbox"] {
+  width: 18px;
+  min-height: 18px;
+  padding: 0;
+}
+
+.chat-settings-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  min-height: 30px;
+}
+
+.chat-settings-hint {
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.chat-history {
+  display: grid;
+  gap: 8px;
+  min-height: 0;
+  max-height: none;
+  padding: 10px;
+  overflow-y: auto;
+  border: 1px solid rgba(87, 71, 53, 0.1);
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.78);
+}
+
+.chat-history-empty {
+  margin: auto;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.chat-row {
+  display: grid;
+  gap: 4px;
+  justify-items: start;
+}
+
+.chat-row.assistant {
+  justify-items: end;
+}
+
+.chat-role {
+  color: var(--muted);
+  font-size: 10px;
+  font-weight: 700;
+}
+
+.chat-bubble {
+  max-width: 85%;
+  padding: 9px 11px;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.94);
+  border: 1px solid rgba(87, 71, 53, 0.08);
+  font-size: 12px;
+  line-height: 1.4;
+  overflow-wrap: anywhere;
+}
+
+.chat-row.assistant .chat-bubble {
+  background: color-mix(in srgb, var(--pet-secondary) 12%, white);
+  border-color: color-mix(in srgb, var(--pet-secondary) 30%, rgba(87, 71, 53, 0.08));
+}
+
+.chat-compose {
+  display: grid;
+  gap: 8px;
+}
+
+.chat-compose-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.chat-counter {
+  color: var(--muted);
+  font-size: 11px;
+}
+
 .action-button.active {
   border-color: color-mix(in srgb, var(--pet-secondary) 72%, #a96f31);
   background: color-mix(in srgb, var(--pet-secondary) 18%, white);
@@ -465,5 +726,18 @@ body.dragging-pet .pet-canvas {
   .bubble-editor-dialog {
     width: min(100%, 520px);
     padding: 18px;
+  }
+
+  .chat-panel-dialog {
+    width: min(100%, 400px);
+    padding: 16px;
+  }
+
+  .chat-window-dialog {
+    width: min(100%, 332px);
+  }
+
+  .chat-settings-grid {
+    grid-template-columns: minmax(0, 1fr);
   }
 }

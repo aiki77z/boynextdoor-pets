@@ -49,9 +49,23 @@ const state = {
   controlsHoverOpen: false,
   companionMode: window.localStorage.getItem("desktopPetCompanionMode") === "true",
   bubbleEditorOpen: false,
+  chatPanelOpen: false,
+  chatWindowOpen: false,
   bubbleDraftLines: [],
   selectedBubbleLineIndex: 0,
   bubbleLineEditMode: null,
+  chatDraft: "",
+  chatSending: false,
+  chatBubblePinnedUntil: 0,
+  chatSettings: {
+    enabled: false,
+    baseUrl: "https://api.deepseek.com",
+    model: "deepseek-chat",
+    hasApiKey: false,
+    apiKeyHint: "",
+    history: [],
+    historyCount: 0
+  },
   shellSettings: {
     alwaysOnTop: true,
     openAtLogin: true,
@@ -77,6 +91,8 @@ const talkButton = document.querySelector("#talkButton");
 const nextPetButton = document.querySelector("#nextPetButton");
 const bubbleToggleButton = document.querySelector("#bubbleToggleButton");
 const companionButton = document.querySelector("#companionButton");
+const aiSettingsButton = document.querySelector("#aiSettingsButton");
+const aiChatButton = document.querySelector("#aiChatButton");
 const idleButton = document.querySelector("#idleButton");
 const scaleButton = document.querySelector("#scaleButton");
 const editBubbleButton = document.querySelector("#editBubbleButton");
@@ -93,6 +109,27 @@ const cancelBubbleLineButton = document.querySelector("#cancelBubbleLineButton")
 const saveBubbleButton = document.querySelector("#saveBubbleButton");
 const resetBubbleButton = document.querySelector("#resetBubbleButton");
 const cancelBubbleEditorButton = document.querySelector("#cancelBubbleEditorButton");
+const chatPanelModal = document.querySelector("#chatPanelModal");
+const chatPanelBackdrop = document.querySelector("#chatPanelBackdrop");
+const closeChatPanelButton = document.querySelector("#closeChatPanelButton");
+const chatPanelSubtitle = document.querySelector("#chatPanelSubtitle");
+const chatEnabledInput = document.querySelector("#chatEnabledInput");
+const chatModelInput = document.querySelector("#chatModelInput");
+const chatBaseUrlInput = document.querySelector("#chatBaseUrlInput");
+const chatApiKeyInput = document.querySelector("#chatApiKeyInput");
+const saveChatSettingsButton = document.querySelector("#saveChatSettingsButton");
+const clearChatMemoryButton = document.querySelector("#clearChatMemoryButton");
+const chatSettingsHint = document.querySelector("#chatSettingsHint");
+const chatHistory = document.querySelector("#chatHistory");
+const chatComposeForm = document.querySelector("#chatComposeForm");
+const chatInput = document.querySelector("#chatInput");
+const chatCounter = document.querySelector("#chatCounter");
+const sendChatButton = document.querySelector("#sendChatButton");
+const chatWindowModal = document.querySelector("#chatWindowModal");
+const chatWindowBackdrop = document.querySelector("#chatWindowBackdrop");
+const closeChatWindowButton = document.querySelector("#closeChatWindowButton");
+const chatWindowTitle = document.querySelector("#chatWindowTitle");
+const chatWindowSubtitle = document.querySelector("#chatWindowSubtitle");
 
 petCanvas.width = ATLAS.cellWidth * 2;
 petCanvas.height = ATLAS.cellHeight * 2;
@@ -101,6 +138,8 @@ const imageCache = new Map();
 const BUBBLE_TEXT_STORAGE_KEY = "desktopPetCustomBubbleText";
 const PET_SCALE_STEPS = [0.35, 0.5, 0.65, 0.8, 1];
 const DEFAULT_ACTION = "idle";
+const CHAT_INPUT_LIMIT = 100;
+const CHAT_BUBBLE_PIN_MS = 20000;
 
 let dragState = null;
 let suppressPetClickUntil = 0;
@@ -116,6 +155,167 @@ function readBubbleOverrides() {
 
 function writeBubbleOverrides(overrides) {
   window.localStorage.setItem(BUBBLE_TEXT_STORAGE_KEY, JSON.stringify(overrides));
+}
+
+function clampTextLength(value, maxLength) {
+  return Array.from(String(value || "")).slice(0, maxLength).join("");
+}
+
+function setChatStatus(message) {
+  const nextMessage = String(message || "");
+  chatSettingsHint.textContent = nextMessage;
+  if (nextMessage) {
+    chatWindowSubtitle.textContent = nextMessage;
+  }
+}
+
+function setChatBubble(text) {
+  state.chatBubblePinnedUntil = Date.now() + CHAT_BUBBLE_PIN_MS;
+  setBubbleText(text);
+}
+
+function historyLabelForRole(role) {
+  return role === "assistant" ? state.selectedPet.name : "You";
+}
+
+function updateChatCounter() {
+  const length = Array.from(chatInput.value).length;
+  chatCounter.textContent = `${length} / ${CHAT_INPUT_LIMIT}`;
+}
+
+function renderChatHistory() {
+  const history = Array.isArray(state.chatSettings.history) ? state.chatSettings.history : [];
+  chatHistory.innerHTML = "";
+
+  if (!history.length) {
+    const empty = document.createElement("p");
+    empty.className = "chat-history-empty";
+    empty.textContent = "No memory yet. Say something small.";
+    chatHistory.appendChild(empty);
+    return;
+  }
+
+  history.forEach((entry) => {
+    const row = document.createElement("div");
+    row.className = `chat-row ${entry.role === "assistant" ? "assistant" : "user"}`;
+
+    const label = document.createElement("span");
+    label.className = "chat-role";
+    label.textContent = historyLabelForRole(entry.role);
+
+    const bubble = document.createElement("div");
+    bubble.className = "chat-bubble";
+    bubble.textContent = entry.content;
+
+    row.append(label, bubble);
+    chatHistory.appendChild(row);
+  });
+
+  chatHistory.scrollTop = chatHistory.scrollHeight;
+}
+
+function applyChatSettings(nextState) {
+  state.chatSettings = {
+    ...state.chatSettings,
+    ...nextState,
+    history: Array.isArray(nextState?.history) ? nextState.history : state.chatSettings.history
+  };
+
+  const chatReady = Boolean(state.chatSettings.enabled && state.chatSettings.hasApiKey);
+  aiSettingsButton.classList.toggle("active", state.chatSettings.enabled);
+  aiChatButton.classList.toggle("active", chatReady);
+  aiChatButton.disabled = !chatReady;
+  chatEnabledInput.checked = Boolean(state.chatSettings.enabled);
+  chatModelInput.value = state.chatSettings.model || "deepseek-chat";
+  chatBaseUrlInput.value = state.chatSettings.baseUrl || "https://api.deepseek.com";
+  chatApiKeyInput.placeholder = state.chatSettings.hasApiKey
+    ? `已保存 ${state.chatSettings.apiKeyHint}，留空则保留当前 Key`
+    : "Enable AI 时填写，留空则保留当前 Key";
+  chatPanelSubtitle.textContent = `${state.selectedPet.name} · model settings`;
+  chatWindowTitle.textContent = `${state.selectedPet.name} Chat`;
+  chatWindowSubtitle.textContent = `recent memory ${state.chatSettings.historyCount || 0}`;
+  sendChatButton.disabled = state.chatSending || !chatReady;
+  clearChatMemoryButton.disabled = state.chatSending;
+  renderChatHistory();
+}
+
+async function refreshChatState() {
+  if (!window.desktopPetShell) return;
+  try {
+    applyChatSettings(await window.desktopPetShell.getChatState(state.selectedPet.id));
+    const status = state.chatSettings.enabled
+      ? "AI 已启用。"
+      : "开启 AI 后可以聊天。";
+    if (state.chatPanelOpen) {
+      setChatStatus(status);
+    } else if (state.chatWindowOpen) {
+      chatWindowSubtitle.textContent = `recent memory ${state.chatSettings.historyCount || 0}`;
+    }
+  } catch (error) {
+    setChatStatus(error.message || "无法读取聊天状态。");
+  }
+}
+
+function openChatPanel() {
+  state.chatPanelOpen = true;
+  state.chatWindowOpen = false;
+  state.controlsOpen = false;
+  state.controlsHoverOpen = false;
+  if (state.bubbleEditorOpen) {
+    state.bubbleEditorOpen = false;
+    state.bubbleLineEditMode = null;
+    if (window.desktopPetShell) {
+      window.desktopPetShell.setBubbleEditorOpen(false);
+    }
+  }
+  if (window.desktopPetShell) {
+    window.desktopPetShell.setChatPanelOpen(true);
+    window.desktopPetShell.setChatWindowOpen(false);
+  }
+  renderShellControls();
+  refreshChatState();
+  window.setTimeout(() => chatModelInput.focus(), 40);
+}
+
+function closeChatPanel() {
+  state.chatPanelOpen = false;
+  state.chatSending = false;
+  if (window.desktopPetShell) {
+    window.desktopPetShell.setChatPanelOpen(false);
+  }
+  renderShellControls();
+}
+
+function openChatWindow() {
+  if (!state.chatSettings.enabled || !state.chatSettings.hasApiKey) return;
+  state.chatWindowOpen = true;
+  state.chatPanelOpen = false;
+  state.controlsOpen = false;
+  state.controlsHoverOpen = false;
+  if (state.bubbleEditorOpen) {
+    state.bubbleEditorOpen = false;
+    state.bubbleLineEditMode = null;
+    if (window.desktopPetShell) {
+      window.desktopPetShell.setBubbleEditorOpen(false);
+    }
+  }
+  if (window.desktopPetShell) {
+    window.desktopPetShell.setChatWindowOpen(true);
+    window.desktopPetShell.setChatPanelOpen(false);
+  }
+  renderShellControls();
+  refreshChatState();
+  updateChatCounter();
+  window.setTimeout(() => chatInput.focus(), 40);
+}
+
+function closeChatWindow() {
+  state.chatWindowOpen = false;
+  state.chatSending = false;
+  if (window.desktopPetShell) {
+    window.desktopPetShell.setChatWindowOpen(false);
+  }
+  renderShellControls();
 }
 
 function getBubbleLinesForPet(pet) {
@@ -253,7 +453,7 @@ function scheduleBubbleRotation() {
   }
   speakRandomLine();
   state.bubbleTimer = window.setInterval(() => {
-    if (state.action === DEFAULT_ACTION) {
+    if (state.action === DEFAULT_ACTION && Date.now() > state.chatBubblePinnedUntil) {
       speakRandomLine();
     }
   }, 7000);
@@ -273,6 +473,9 @@ function selectPet(petId, options = {}) {
   setAction(DEFAULT_ACTION);
   render();
   scheduleBubbleRotation();
+  if (state.chatPanelOpen || state.chatWindowOpen) {
+    refreshChatState();
+  }
 
   if (options.syncShell !== false) {
     syncSelectedPet(petId);
@@ -362,6 +565,8 @@ function confirmBubbleLineForm() {
 
 function openBubbleEditor() {
   state.bubbleEditorOpen = true;
+  state.chatPanelOpen = false;
+  state.chatWindowOpen = false;
   state.controlsOpen = false;
   state.controlsHoverOpen = false;
   state.bubbleDraftLines = [...getCurrentLines()];
@@ -369,6 +574,8 @@ function openBubbleEditor() {
   state.bubbleLineEditMode = null;
   if (window.desktopPetShell) {
     window.desktopPetShell.setBubbleEditorOpen(true);
+    window.desktopPetShell.setChatPanelOpen(false);
+    window.desktopPetShell.setChatWindowOpen(false);
   }
   renderBubbleEditor();
   renderShellControls();
@@ -440,6 +647,8 @@ function setCompanionMode(enabled) {
   if (state.companionMode) {
     state.controlsOpen = false;
     state.controlsHoverOpen = false;
+    state.chatPanelOpen = false;
+    state.chatWindowOpen = false;
     if (state.bubbleEditorOpen) {
       state.bubbleEditorOpen = false;
       state.bubbleLineEditMode = null;
@@ -450,6 +659,10 @@ function setCompanionMode(enabled) {
   }
   if (window.desktopPetShell) {
     window.desktopPetShell.setCompanionMode(state.companionMode);
+    if (state.companionMode) {
+      window.desktopPetShell.setChatPanelOpen(false);
+      window.desktopPetShell.setChatWindowOpen(false);
+    }
   }
   renderShellControls();
 }
@@ -470,15 +683,22 @@ function ensureBubbleContent() {
 
 function renderShellControls() {
   document.body.classList.toggle("bubble-editor-open", state.bubbleEditorOpen);
+  document.body.classList.toggle("chat-panel-open", state.chatPanelOpen);
+  document.body.classList.toggle("chat-window-open", state.chatWindowOpen);
   document.body.classList.toggle("bubbles-off", !state.shellSettings.bubbleEnabled);
   document.body.classList.toggle("companion-mode", state.companionMode);
   document.body.classList.toggle("controls-visible", !state.companionMode && (state.controlsOpen || state.controlsHoverOpen));
   pinButton.classList.toggle("active", state.shellSettings.alwaysOnTop);
   bubbleToggleButton.classList.toggle("active", state.shellSettings.bubbleEnabled);
   companionButton.classList.toggle("active", state.companionMode);
+  aiSettingsButton.classList.toggle("active", state.chatSettings.enabled);
+  aiChatButton.classList.toggle("active", state.chatSettings.enabled && state.chatSettings.hasApiKey);
+  aiChatButton.disabled = !(state.chatSettings.enabled && state.chatSettings.hasApiKey);
   companionButton.title = state.companionMode ? "Exit Companion Mode by double-clicking pet" : "Companion Mode";
   companionButton.setAttribute("aria-label", companionButton.title);
   bubbleEditorModal.setAttribute("aria-hidden", String(!state.bubbleEditorOpen));
+  chatPanelModal.setAttribute("aria-hidden", String(!state.chatPanelOpen));
+  chatWindowModal.setAttribute("aria-hidden", String(!state.chatWindowOpen));
   ensureBubbleContent();
 }
 
@@ -490,6 +710,8 @@ function render() {
   petTitle.textContent = pet.name;
   setBubbleText(state.shellSettings.bubbleEnabled ? getCurrentLines()[state.bubbleIndex] : "");
   renderBubbleEditor();
+  applyChatSettings(state.chatSettings);
+  updateChatCounter();
   renderActionButtons();
   renderShellControls();
 }
@@ -531,6 +753,14 @@ editBubbleButton.addEventListener("click", async () => {
 
 companionButton.addEventListener("click", () => {
   setCompanionMode(true);
+});
+
+aiSettingsButton.addEventListener("click", () => {
+  openChatPanel();
+});
+
+aiChatButton.addEventListener("click", () => {
+  openChatWindow();
 });
 
 petRoom.addEventListener("wheel", (event) => {
@@ -631,6 +861,116 @@ bubbleEditorBackdrop.addEventListener("click", () => {
   closeBubbleEditor();
 });
 
+closeChatPanelButton.addEventListener("click", () => {
+  closeChatPanel();
+});
+
+chatPanelBackdrop.addEventListener("click", () => {
+  closeChatPanel();
+});
+
+closeChatWindowButton.addEventListener("click", () => {
+  closeChatWindow();
+});
+
+chatWindowBackdrop.addEventListener("click", () => {
+  closeChatWindow();
+});
+
+chatInput.addEventListener("input", () => {
+  const clamped = clampTextLength(chatInput.value, CHAT_INPUT_LIMIT);
+  if (clamped !== chatInput.value) {
+    chatInput.value = clamped;
+  }
+  state.chatDraft = chatInput.value;
+  updateChatCounter();
+});
+
+saveChatSettingsButton.addEventListener("click", async () => {
+  if (!window.desktopPetShell) return;
+  saveChatSettingsButton.disabled = true;
+  try {
+    const nextState = await window.desktopPetShell.updateChatSettings({
+      petId: state.selectedPet.id,
+      enabled: chatEnabledInput.checked,
+      model: chatModelInput.value.trim(),
+      baseUrl: chatBaseUrlInput.value.trim(),
+      apiKey: chatApiKeyInput.value.trim()
+    });
+    chatApiKeyInput.value = "";
+    applyChatSettings(nextState);
+    setChatStatus(nextState.enabled ? "AI 设置已保存。" : "AI 对话已关闭。");
+  } catch (error) {
+    setChatStatus(error.message || "保存 AI 设置失败。");
+  } finally {
+    saveChatSettingsButton.disabled = false;
+  }
+});
+
+clearChatMemoryButton.addEventListener("click", async () => {
+  if (!window.desktopPetShell) return;
+  try {
+    applyChatSettings(await window.desktopPetShell.clearChatMemory(state.selectedPet.id));
+    setChatStatus("这只宠物的上下文记忆已清空。");
+  } catch (error) {
+    setChatStatus(error.message || "清空记忆失败。");
+  }
+});
+
+chatComposeForm.addEventListener("submit", async (event) => {
+  event.preventDefault();
+  if (!window.desktopPetShell || state.chatSending) return;
+
+  const message = clampTextLength(chatInput.value.trim(), CHAT_INPUT_LIMIT);
+  if (!message) {
+    setChatStatus("先输入一点点内容吧。");
+    chatInput.focus();
+    return;
+  }
+
+  state.chatSending = true;
+  sendChatButton.disabled = true;
+  setChatStatus("正在等宠物回复...");
+  previewAction("review", 2000, { quiet: true });
+  if (state.shellSettings.bubbleEnabled) {
+    setChatBubble("...");
+  }
+
+  try {
+    const result = await window.desktopPetShell.sendPetChat({
+      petId: state.selectedPet.id,
+      petProfile: {
+        id: state.selectedPet.id,
+        name: state.selectedPet.name,
+        animalType: state.selectedPet.animalType,
+        personality: state.selectedPet.personality,
+        favoriteFood: state.selectedPet.favoriteFood
+      },
+      message
+    });
+    state.chatDraft = "";
+    chatInput.value = "";
+    updateChatCounter();
+    applyChatSettings({
+      ...state.chatSettings,
+      history: result.history,
+      historyCount: result.historyCount
+    });
+    setChatBubble(result.reply);
+    activateAction("waving", { quiet: true });
+    setChatStatus("收到回复了。");
+  } catch (error) {
+    setChatStatus(error.message || "发送失败。");
+    if (state.shellSettings.bubbleEnabled) {
+      setChatBubble("我刚刚卡住了。");
+    }
+    activateAction("failed", { quiet: true });
+  } finally {
+    state.chatSending = false;
+    sendChatButton.disabled = !(state.chatSettings.enabled && state.chatSettings.hasApiKey);
+  }
+});
+
 function beginPetDrag(event) {
   if (!window.desktopPetShell || event.button !== 0) return;
   dragState = { x: event.screenX, y: event.screenY, pointerId: event.pointerId, moved: false };
@@ -710,7 +1050,7 @@ petCluster.addEventListener("dblclick", (event) => {
 });
 
 document.addEventListener("click", (event) => {
-  const clickedInsideControls = event.target.closest(".action-bar, .bubble-editor-dialog");
+  const clickedInsideControls = event.target.closest(".action-bar, .bubble-editor-dialog, .chat-panel-dialog, .chat-window-dialog");
   const clickedPet = event.target.closest("#petButton");
   if (clickedPet) {
     return;
@@ -726,6 +1066,12 @@ window.addEventListener("keydown", (event) => {
   if (event.key === "Escape" && state.bubbleEditorOpen) {
     closeBubbleEditor();
   }
+  if (event.key === "Escape" && state.chatPanelOpen) {
+    closeChatPanel();
+  }
+  if (event.key === "Escape" && state.chatWindowOpen) {
+    closeChatWindow();
+  }
   if (event.key === "Escape" && state.controlsOpen) {
     state.controlsOpen = false;
     renderShellControls();
@@ -735,6 +1081,8 @@ window.addEventListener("keydown", (event) => {
 if (window.desktopPetShell) {
   window.desktopPetShell.setCompanionMode(state.companionMode);
   window.desktopPetShell.setBubbleEditorOpen(false);
+  window.desktopPetShell.setChatPanelOpen(false);
+  window.desktopPetShell.setChatWindowOpen(false);
 
   bubbleToggleButton.addEventListener("click", async () => {
     const next = !state.shellSettings.bubbleEnabled;
@@ -771,6 +1119,7 @@ if (window.desktopPetShell) {
     selectPet(state.shellSettings.selectedPetId || pets[0].id, { syncShell: false });
     renderShellControls();
     scheduleBubbleRotation();
+    refreshChatState();
   });
 
   window.desktopPetShell.onSettings((settings) => {

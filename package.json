@@ -1,6 +1,6 @@
 {
   "name": "bnd-desktop-pets",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "private": true,
   "description": "Electron desktop pet shell wired to six finalized hatch-pet atlases.",
   "main": "main.js",
