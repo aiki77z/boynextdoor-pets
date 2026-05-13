@@ -261,7 +261,7 @@ body.companion-mode.controls-visible .action-bar {
   z-index: 20;
   display: grid;
   place-items: center;
-  padding: 20px;
+  padding: 16px;
   pointer-events: none;
   opacity: 0;
   transition: opacity 180ms ease;
@@ -275,21 +275,20 @@ body.bubble-editor-open .bubble-editor-modal {
 .bubble-editor-backdrop {
   position: absolute;
   inset: 0;
-  background: rgba(37, 33, 28, 0.18);
-  backdrop-filter: blur(10px);
+  background: transparent;
 }
 
 .bubble-editor-dialog {
   position: relative;
   z-index: 1;
-  width: min(620px, calc(100vw - 32px));
-  padding: 22px;
-  border-radius: 28px;
+  width: min(600px, calc(100vw - 28px));
+  padding: 18px;
+  border-radius: 22px;
   border: 1px solid rgba(87, 71, 53, 0.12);
   background: linear-gradient(180deg, rgba(255, 255, 255, 0.96) 0%, rgba(255, 248, 239, 0.96) 100%);
-  box-shadow: 0 24px 70px rgba(49, 35, 16, 0.2);
   transform: translateY(14px) scale(0.98);
   transition: transform 180ms ease;
+  font-size: 11px;
 }
 
 body.bubble-editor-open .bubble-editor-dialog {
@@ -298,13 +297,8 @@ body.bubble-editor-open .bubble-editor-dialog {
 
 .bubble-editor-header h2 {
   margin: 0;
-}
-
-.bubble-editor-header p {
-  margin: 6px 0 0;
-  color: var(--muted);
-  font-size: 12px;
-  line-height: 1.45;
+  font-size: 20px;
+  line-height: 1.1;
 }
 
 .action-button {
@@ -323,31 +317,31 @@ body.dragging-pet .pet-canvas {
 
 .bubble-manager {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 96px;
-  gap: 12px;
-  margin-top: 16px;
+  grid-template-columns: minmax(0, 1fr) 84px;
+  gap: 10px;
+  margin-top: 14px;
 }
 
 .bubble-line-list {
-  min-height: 208px;
-  max-height: 270px;
+  min-height: 176px;
+  max-height: 232px;
   overflow-y: auto;
-  padding: 8px;
+  padding: 7px;
   border: 1px solid rgba(87, 71, 53, 0.12);
-  border-radius: 18px;
+  border-radius: 16px;
   background: rgba(255, 255, 255, 0.88);
 }
 
 .bubble-line-item {
   display: grid;
-  grid-template-columns: 28px minmax(0, 1fr);
+  grid-template-columns: 24px minmax(0, 1fr);
   align-items: center;
   width: 100%;
-  min-height: 38px;
-  margin: 0 0 6px;
-  padding: 7px 10px;
+  min-height: 32px;
+  margin: 0 0 5px;
+  padding: 5px 8px;
   border: 1px solid transparent;
-  border-radius: 12px;
+  border-radius: 10px;
   background: transparent;
   color: var(--ink);
   text-align: left;
@@ -360,7 +354,7 @@ body.dragging-pet .pet-canvas {
 
 .bubble-line-item span {
   color: var(--muted);
-  font-size: 11px;
+  font-size: 10px;
   font-weight: 700;
 }
 
@@ -368,7 +362,7 @@ body.dragging-pet .pet-canvas {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  font-size: 12px;
+  font-size: 11px;
 }
 
 .bubble-line-item.selected {
@@ -378,27 +372,27 @@ body.dragging-pet .pet-canvas {
 
 .bubble-line-empty {
   margin: 0;
-  padding: 70px 16px 0;
+  padding: 58px 14px 0;
   color: var(--muted);
   text-align: center;
-  font-size: 12px;
+  font-size: 11px;
 }
 
 .bubble-line-actions {
   display: grid;
   align-content: start;
-  gap: 8px;
+  gap: 7px;
 }
 
 .bubble-line-form {
   display: grid;
-  grid-template-columns: 76px minmax(0, 1fr) auto;
-  gap: 8px;
+  grid-template-columns: 64px minmax(0, 1fr) auto;
+  gap: 7px;
   align-items: center;
-  margin-top: 12px;
-  padding: 10px;
+  margin-top: 10px;
+  padding: 8px;
   border: 1px solid rgba(87, 71, 53, 0.12);
-  border-radius: 16px;
+  border-radius: 14px;
   background: rgba(255, 255, 255, 0.76);
 }
 
@@ -408,40 +402,43 @@ body.dragging-pet .pet-canvas {
 
 .bubble-line-form label {
   color: var(--muted);
-  font-size: 11px;
+  font-size: 10px;
   font-weight: 700;
 }
 
 .bubble-line-form input {
   min-width: 0;
-  min-height: 34px;
-  padding: 0 10px;
+  min-height: 30px;
+  padding: 0 9px;
   border: 1px solid rgba(87, 71, 53, 0.12);
   border-radius: 10px;
   background: rgba(255, 255, 255, 0.92);
   color: var(--ink);
   font: inherit;
-  font-size: 12px;
+  font-size: 11px;
 }
 
 .bubble-line-form-actions {
   display: flex;
-  gap: 6px;
+  gap: 5px;
 }
 
 .bubble-editor-actions {
   display: flex;
-  gap: 8px;
-  margin-top: 10px;
+  gap: 7px;
+  margin-top: 9px;
 }
 
 .editor-button {
-  min-height: 34px;
-  padding: 0 12px;
+  min-height: 30px;
+  padding: 0 10px;
   border: 1px solid rgba(87, 71, 53, 0.12);
   border-radius: 999px;
   background: rgba(255, 255, 255, 0.92);
   cursor: pointer;
+  font-size: 11px;
+  line-height: 1.1;
+  white-space: nowrap;
 }
 
 .editor-button:disabled {
