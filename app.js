@@ -58,7 +58,6 @@ const state = {
 };
 
 const petTitle = document.querySelector("#petTitle");
-const moodLabel = document.querySelector("#moodLabel");
 const petCanvas = document.querySelector("#petCanvas");
 const petCtx = petCanvas.getContext("2d");
 const petRoom = document.querySelector("#petRoom");
@@ -296,7 +295,6 @@ function setAction(action) {
   window.clearTimeout(state.resetTimer);
   state.action = action;
   state.actionStartedAt = performance.now();
-  moodLabel.textContent = action;
 
   actionButtons.forEach((button) => {
     button.classList.toggle("active", button.dataset.action === action);
@@ -502,7 +500,7 @@ actionBar.addEventListener("mouseleave", () => {
 });
 
 document.addEventListener("click", (event) => {
-  const clickedInsideControls = event.target.closest(".action-bar, .floating-toolbar, .side-action, .bubble-editor-dialog");
+  const clickedInsideControls = event.target.closest(".action-bar, .bubble-editor-dialog");
   const clickedPet = event.target.closest("#petButton");
   if (clickedPet) {
     return;

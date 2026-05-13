@@ -48,31 +48,6 @@ button {
   backdrop-filter: blur(14px);
 }
 
-.floating-toolbar {
-  position: absolute;
-  z-index: 5;
-  top: 4px;
-  left: 4px;
-  right: auto;
-  display: flex;
-  align-items: center;
-  justify-content: flex-start;
-  gap: 8px;
-  padding: 4px;
-  border-radius: 18px;
-  background: transparent;
-  opacity: 0;
-  transform: translateY(-8px);
-  transition: opacity 160ms ease, transform 160ms ease;
-  -webkit-app-region: drag;
-}
-
-body.bubble-editor-open .floating-toolbar,
-body.controls-visible .floating-toolbar {
-  opacity: 1;
-  transform: translateY(0);
-}
-
 .identity-chip {
   display: grid;
   gap: 2px;
@@ -98,24 +73,10 @@ body.controls-visible .floating-toolbar {
   font-size: 11px;
 }
 
-.status-pill,
 .shell-button,
 .action-button {
   border: 1px solid rgba(87, 71, 53, 0.12);
   background: rgba(255, 255, 255, 0.9);
-}
-
-.status-pill {
-  display: grid;
-  place-items: center;
-  min-width: 42px;
-  min-height: 24px;
-  padding: 0 7px;
-  border-radius: 999px;
-  color: #6e532e;
-  font-size: 9px;
-  font-weight: 700;
-  background: rgba(255, 255, 255, 0.82);
 }
 
 .shell-button {
@@ -249,39 +210,6 @@ body.controls-visible .pet-nameplate {
   transform: translateX(-50%) translateY(0);
 }
 
-.side-action {
-  position: absolute;
-  z-index: 4;
-  top: 50%;
-  right: 10px;
-  display: grid;
-  width: 30px;
-  height: 30px;
-  place-items: center;
-  border: 1px solid rgba(87, 71, 53, 0.12);
-  border-radius: 999px;
-  background: rgba(255, 255, 255, 0.88);
-  transform: translateY(-50%);
-  cursor: pointer;
-  opacity: 0;
-  transition: opacity 160ms ease, transform 160ms ease;
-}
-
-.side-action-left {
-  left: 10px;
-  right: auto;
-}
-
-.side-action-edit {
-  top: calc(50% + 38px);
-}
-
-body.bubble-editor-open .side-action,
-body.controls-visible .side-action {
-  opacity: 1;
-  transform: translateY(-50%) scale(1);
-}
-
 .action-bar {
   position: absolute;
   left: 50%;
@@ -289,9 +217,9 @@ body.controls-visible .side-action {
   top: calc(50% + ((220px * var(--pet-scale)) / 0.92 / 2) + 12px);
   z-index: 5;
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(5, minmax(0, 1fr));
   gap: 6px;
-  width: 152px;
+  width: 188px;
   padding: 6px;
   border-radius: 18px;
   background: rgba(255, 255, 255, 0.82);
@@ -404,8 +332,7 @@ body.dragging-pet .pet-canvas {
 
 .identity-chip strong,
 .bubble,
-.shell-button,
-.status-pill {
+.shell-button {
   margin: 0;
 }
 
