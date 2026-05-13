@@ -53,7 +53,9 @@ function defaultState() {
     openAtLogin: true,
     selectedPetId: "catbbi",
     bubbleEnabled: true,
-    petScale: 1
+    petScale: 1,
+    companionMode: false,
+    bubbleEditorOpen: false
   };
 }
 
@@ -167,21 +169,58 @@ function clampPetScale(scale) {
   return Math.min(PET_SCALE_LIMITS.max, Math.max(PET_SCALE_LIMITS.min, value));
 }
 
-function getWindowSizeForPetScale(scale) {
+function getWindowSizeForPetScale(scale, options = {}) {
   const normalizedScale = clampPetScale(scale);
   const petWidth = 220 * normalizedScale;
   const petHeight = petWidth / 0.92;
+  if (options.bubbleEditorOpen) {
+    return { width: 660, height: 520 };
+  }
+  if (options.companionMode) {
+    return {
+      width: Math.max(304, Math.round(petWidth + 48)),
+      height: Math.max(198, Math.round(petHeight + 118))
+    };
+  }
   return {
     width: Math.max(214, Math.round(petWidth + 64)),
     height: Math.max(410, Math.round(petHeight + 330))
   };
 }
 
-function setPetScale(scale) {
+function getWindowSizeForCurrentState() {
+  return getWindowSizeForPetScale(currentState.petScale, {
+    companionMode: currentState.companionMode,
+    bubbleEditorOpen: currentState.bubbleEditorOpen
+  });
+}
+
+function clampBoundsToWorkArea(bounds) {
+  const display = screen.getDisplayMatching(bounds);
+  const { workArea } = display;
+  const x = Math.min(Math.max(bounds.x, workArea.x), workArea.x + workArea.width - bounds.width);
+  const y = Math.min(Math.max(bounds.y, workArea.y), workArea.y + workArea.height - bounds.height);
+  return { ...bounds, x: Math.round(x), y: Math.round(y) };
+}
+
+function applyWindowSizeForCurrentState(anchor = "center") {
   if (!mainWindow || mainWindow.isDestroyed()) return;
-  currentState.petScale = clampPetScale(scale);
-  const target = getWindowSizeForPetScale(currentState.petScale);
+  const target = getWindowSizeForCurrentState();
   const bounds = mainWindow.getBounds();
+  const nextBounds = anchor === "bottom"
+    ? {
+        x: Math.round(bounds.x + bounds.width / 2 - target.width / 2),
+        y: Math.round(bounds.y + bounds.height - target.height),
+        width: target.width,
+        height: target.height
+      }
+    : {
+        x: Math.round(bounds.x + bounds.width / 2 - target.width / 2),
+        y: Math.round(bounds.y + bounds.height / 2 - target.height / 2),
+        width: target.width,
+        height: target.height
+      };
+
   if (target.width >= bounds.width || target.height >= bounds.height) {
     mainWindow.setMaximumSize(target.width, target.height);
     mainWindow.setMinimumSize(target.width, target.height);
@@ -189,13 +228,24 @@ function setPetScale(scale) {
     mainWindow.setMinimumSize(target.width, target.height);
     mainWindow.setMaximumSize(target.width, target.height);
   }
-  mainWindow.setBounds({
-    x: bounds.x,
-    y: bounds.y + bounds.height - target.height,
-    width: target.width,
-    height: target.height
-  });
+  mainWindow.setBounds(clampBoundsToWorkArea(nextBounds));
   writeWindowState(mainWindow);
+}
+
+function setPetScale(scale) {
+  if (!mainWindow || mainWindow.isDestroyed()) return;
+  currentState.petScale = clampPetScale(scale);
+  applyWindowSizeForCurrentState("center");
+}
+
+function setCompanionMode(enabled) {
+  currentState.companionMode = Boolean(enabled);
+  applyWindowSizeForCurrentState("center");
+}
+
+function setBubbleEditorOpen(open) {
+  currentState.bubbleEditorOpen = Boolean(open);
+  applyWindowSizeForCurrentState("center");
 }
 
 function stopWindowDrag() {
@@ -235,7 +285,7 @@ function resetWindowPosition() {
   if (!mainWindow) return;
   const display = screen.getDisplayNearestPoint(screen.getCursorScreenPoint());
   const { workArea } = display;
-  const { width, height } = getWindowSizeForPetScale(currentState.petScale);
+  const { width, height } = getWindowSizeForCurrentState();
   const x = Math.round(workArea.x + workArea.width - width - 48);
   const y = Math.round(workArea.y + workArea.height - height - 64);
   mainWindow.setBounds({ x, y, width, height });
@@ -306,7 +356,8 @@ function createTray() {
 
 function createMainWindow() {
   currentState = readWindowState();
-  const initialSize = getWindowSizeForPetScale(currentState.petScale);
+  currentState.bubbleEditorOpen = false;
+  const initialSize = getWindowSizeForCurrentState();
 
   const window = new BrowserWindow({
     x: currentState.x,
@@ -384,6 +435,16 @@ ipcMain.handle("shell:toggle-always-on-top", () => {
 ipcMain.handle("shell:set-pet-scale", (_event, scale) => {
   setPetScale(scale);
   return { petScale: currentState.petScale };
+});
+
+ipcMain.handle("shell:set-companion-mode", (_event, enabled) => {
+  setCompanionMode(enabled);
+  return { companionMode: currentState.companionMode };
+});
+
+ipcMain.handle("shell:set-bubble-editor-open", (_event, open) => {
+  setBubbleEditorOpen(open);
+  return { bubbleEditorOpen: currentState.bubbleEditorOpen };
 });
 
 ipcMain.handle("shell:start-window-drag", () => {

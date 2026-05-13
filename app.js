@@ -362,9 +362,14 @@ function confirmBubbleLineForm() {
 
 function openBubbleEditor() {
   state.bubbleEditorOpen = true;
+  state.controlsOpen = false;
+  state.controlsHoverOpen = false;
   state.bubbleDraftLines = [...getCurrentLines()];
   state.selectedBubbleLineIndex = 0;
   state.bubbleLineEditMode = null;
+  if (window.desktopPetShell) {
+    window.desktopPetShell.setBubbleEditorOpen(true);
+  }
   renderBubbleEditor();
   renderShellControls();
 }
@@ -372,6 +377,9 @@ function openBubbleEditor() {
 function closeBubbleEditor() {
   state.bubbleEditorOpen = false;
   state.bubbleLineEditMode = null;
+  if (window.desktopPetShell) {
+    window.desktopPetShell.setBubbleEditorOpen(false);
+  }
   renderShellControls();
 }
 
@@ -432,6 +440,16 @@ function setCompanionMode(enabled) {
   if (state.companionMode) {
     state.controlsOpen = false;
     state.controlsHoverOpen = false;
+    if (state.bubbleEditorOpen) {
+      state.bubbleEditorOpen = false;
+      state.bubbleLineEditMode = null;
+      if (window.desktopPetShell) {
+        window.desktopPetShell.setBubbleEditorOpen(false);
+      }
+    }
+  }
+  if (window.desktopPetShell) {
+    window.desktopPetShell.setCompanionMode(state.companionMode);
   }
   renderShellControls();
 }
@@ -715,6 +733,9 @@ window.addEventListener("keydown", (event) => {
 });
 
 if (window.desktopPetShell) {
+  window.desktopPetShell.setCompanionMode(state.companionMode);
+  window.desktopPetShell.setBubbleEditorOpen(false);
+
   bubbleToggleButton.addEventListener("click", async () => {
     const next = !state.shellSettings.bubbleEnabled;
     state.shellSettings = {

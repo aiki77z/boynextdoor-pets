@@ -127,7 +127,7 @@ button {
 .bubble {
   position: absolute;
   z-index: 40;
-  top: max(8px, calc(50% - ((220px * var(--pet-scale)) / 0.92 / 2) - 38px));
+  bottom: calc(50% + ((220px * var(--pet-scale)) / 0.92 / 2) + 6px);
   left: 50%;
   width: min(var(--bubble-width, 140px), calc(100vw - 18px));
   min-width: 96px;
@@ -242,12 +242,12 @@ body.companion-mode .pet-cluster:hover .pet-nameplate {
   -webkit-app-region: no-drag;
 }
 
-body.bubble-editor-open .action-bar,
 body.controls-visible .action-bar {
   opacity: 1;
   transform: translateX(-50%) translateY(0);
 }
 
+body.bubble-editor-open .action-bar,
 body.companion-mode .action-bar,
 body.companion-mode.controls-visible .action-bar {
   opacity: 0;
