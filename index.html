@@ -28,6 +28,7 @@
           <button class="shell-button" id="scaleButton" type="button" title="Scale Pet" aria-label="Scale Pet">🔍</button>
           <button class="shell-button" id="editBubbleButton" type="button" title="Edit Bubble Text" aria-label="Edit Bubble Text">✏️</button>
           <button class="shell-button" id="bubbleToggleButton" type="button" title="Toggle Bubbles" aria-label="Toggle Bubbles">🗨️</button>
+          <button class="shell-button" id="companionButton" type="button" title="Companion Mode" aria-label="Companion Mode">♡</button>
           <button class="shell-button" id="pinButton" type="button" title="Always On Top" aria-label="Always On Top">📌</button>
           <button class="shell-button" id="hideButton" type="button" title="Hide To Tray" aria-label="Hide To Tray">🙈</button>
           <button class="shell-button shell-button-danger" id="quitButton" type="button" title="Quit" aria-label="Quit">✕</button>
@@ -48,11 +49,28 @@
       <section class="bubble-editor-dialog" aria-label="Edit Bubble Text">
         <div class="bubble-editor-header">
           <h2>Bubble Text</h2>
+          <p>像系统变量一样逐条管理台词：新增、编辑、删除后再保存。</p>
         </div>
-        <textarea class="bubble-editor" id="bubbleEditor" rows="7" placeholder="一行一句"></textarea>
-        <div class="bubble-editor-actions">
+        <div class="bubble-manager">
+          <div class="bubble-line-list" id="bubbleLineList" role="listbox" tabindex="0" aria-label="Bubble text lines"></div>
+          <div class="bubble-line-actions">
+            <button class="editor-button" id="addBubbleLineButton" type="button">New</button>
+            <button class="editor-button" id="editBubbleLineButton" type="button">Edit</button>
+            <button class="editor-button" id="deleteBubbleLineButton" type="button">Delete</button>
+          </div>
+        </div>
+        <div class="bubble-line-form" id="bubbleLineForm" hidden>
+          <label for="bubbleLineInput">Line text</label>
+          <input id="bubbleLineInput" type="text" maxlength="80" placeholder="输入一句台词">
+          <div class="bubble-line-form-actions">
+            <button class="editor-button" id="confirmBubbleLineButton" type="button">OK</button>
+            <button class="editor-button" id="cancelBubbleLineButton" type="button">Cancel</button>
+          </div>
+        </div>
+        <div class="bubble-editor-actions bubble-editor-footer">
           <button class="editor-button" id="saveBubbleButton" type="button">Save</button>
-          <button class="editor-button" id="resetBubbleButton" type="button">Reset</button>
+          <button class="editor-button" id="resetBubbleButton" type="button">Restore Default</button>
+          <button class="editor-button" id="cancelBubbleEditorButton" type="button">Cancel</button>
         </div>
       </section>
     </div>

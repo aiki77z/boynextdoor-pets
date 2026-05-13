@@ -47,7 +47,11 @@ const state = {
   actionStartedAt: performance.now(),
   controlsOpen: false,
   controlsHoverOpen: false,
+  companionMode: window.localStorage.getItem("desktopPetCompanionMode") === "true",
   bubbleEditorOpen: false,
+  bubbleDraftLines: [],
+  selectedBubbleLineIndex: 0,
+  bubbleLineEditMode: null,
   shellSettings: {
     alwaysOnTop: true,
     openAtLogin: true,
@@ -72,14 +76,23 @@ const quitButton = document.querySelector("#quitButton");
 const talkButton = document.querySelector("#talkButton");
 const nextPetButton = document.querySelector("#nextPetButton");
 const bubbleToggleButton = document.querySelector("#bubbleToggleButton");
+const companionButton = document.querySelector("#companionButton");
 const idleButton = document.querySelector("#idleButton");
 const scaleButton = document.querySelector("#scaleButton");
 const editBubbleButton = document.querySelector("#editBubbleButton");
 const bubbleEditorModal = document.querySelector("#bubbleEditorModal");
 const bubbleEditorBackdrop = document.querySelector("#bubbleEditorBackdrop");
-const bubbleEditor = document.querySelector("#bubbleEditor");
+const bubbleLineList = document.querySelector("#bubbleLineList");
+const bubbleLineForm = document.querySelector("#bubbleLineForm");
+const bubbleLineInput = document.querySelector("#bubbleLineInput");
+const addBubbleLineButton = document.querySelector("#addBubbleLineButton");
+const editBubbleLineButton = document.querySelector("#editBubbleLineButton");
+const deleteBubbleLineButton = document.querySelector("#deleteBubbleLineButton");
+const confirmBubbleLineButton = document.querySelector("#confirmBubbleLineButton");
+const cancelBubbleLineButton = document.querySelector("#cancelBubbleLineButton");
 const saveBubbleButton = document.querySelector("#saveBubbleButton");
 const resetBubbleButton = document.querySelector("#resetBubbleButton");
+const cancelBubbleEditorButton = document.querySelector("#cancelBubbleEditorButton");
 
 petCanvas.width = ATLAS.cellWidth * 2;
 petCanvas.height = ATLAS.cellHeight * 2;
@@ -209,22 +222,33 @@ function getCurrentLines() {
     : [state.selectedPet.name];
 }
 
+function calculateBubbleWidth(text) {
+  const length = Array.from(String(text || "").trim()).length;
+  return Math.min(280, Math.max(96, 54 + length * 12));
+}
+
+function setBubbleText(text) {
+  const nextText = String(text || "");
+  bubbleText.textContent = nextText;
+  bubbleText.style.setProperty("--bubble-width", `${calculateBubbleWidth(nextText)}px`);
+}
+
 function cycleBubble(step = 1) {
   const lines = getCurrentLines();
   state.bubbleIndex = (state.bubbleIndex + step + lines.length) % lines.length;
-  bubbleText.textContent = lines[state.bubbleIndex];
+  setBubbleText(lines[state.bubbleIndex]);
 }
 
 function speakRandomLine() {
   const lines = getCurrentLines();
   state.bubbleIndex = Math.floor(Math.random() * lines.length);
-  bubbleText.textContent = lines[state.bubbleIndex];
+  setBubbleText(lines[state.bubbleIndex]);
 }
 
 function scheduleBubbleRotation() {
   window.clearInterval(state.bubbleTimer);
   if (!state.shellSettings.bubbleEnabled) {
-    bubbleText.textContent = "";
+    setBubbleText("");
     return;
   }
   speakRandomLine();
@@ -262,23 +286,92 @@ function selectNextPet() {
   selectPet(next.id);
 }
 
+function normalizeBubbleLines(lines) {
+  return lines
+    .map((line) => String(line).trim())
+    .filter(Boolean);
+}
+
 function renderBubbleEditor() {
-  bubbleEditor.value = getCurrentLines().join("\n");
+  bubbleLineList.innerHTML = "";
+
+  state.bubbleDraftLines.forEach((line, index) => {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = `bubble-line-item ${index === state.selectedBubbleLineIndex ? "selected" : ""}`;
+    button.setAttribute("role", "option");
+    button.setAttribute("aria-selected", String(index === state.selectedBubbleLineIndex));
+    button.innerHTML = `<span>${index + 1}</span><strong></strong>`;
+    button.querySelector("strong").textContent = line;
+    button.addEventListener("click", () => {
+      state.selectedBubbleLineIndex = index;
+      renderBubbleEditor();
+    });
+    button.addEventListener("dblclick", () => {
+      openBubbleLineForm("edit");
+    });
+    bubbleLineList.appendChild(button);
+  });
+
+  if (!state.bubbleDraftLines.length) {
+    const empty = document.createElement("p");
+    empty.className = "bubble-line-empty";
+    empty.textContent = "No lines yet. Click New to add one.";
+    bubbleLineList.appendChild(empty);
+  }
+
+  editBubbleLineButton.disabled = !state.bubbleDraftLines.length;
+  deleteBubbleLineButton.disabled = !state.bubbleDraftLines.length;
+  bubbleLineForm.hidden = state.bubbleLineEditMode === null;
+}
+
+function openBubbleLineForm(mode) {
+  state.bubbleLineEditMode = mode;
+  const selectedLine = state.bubbleDraftLines[state.selectedBubbleLineIndex] || "";
+  bubbleLineInput.value = mode === "edit" ? selectedLine : "";
+  renderBubbleEditor();
+
+  window.setTimeout(() => {
+    bubbleLineInput.focus();
+    bubbleLineInput.setSelectionRange(bubbleLineInput.value.length, bubbleLineInput.value.length);
+  }, 40);
+}
+
+function closeBubbleLineForm() {
+  state.bubbleLineEditMode = null;
+  bubbleLineInput.value = "";
+  renderBubbleEditor();
+}
+
+function confirmBubbleLineForm() {
+  const value = bubbleLineInput.value.trim();
+  if (!value) {
+    bubbleLineInput.focus();
+    return;
+  }
+
+  if (state.bubbleLineEditMode === "edit" && state.bubbleDraftLines.length) {
+    state.bubbleDraftLines[state.selectedBubbleLineIndex] = value;
+  } else {
+    state.bubbleDraftLines.push(value);
+    state.selectedBubbleLineIndex = state.bubbleDraftLines.length - 1;
+  }
+
+  closeBubbleLineForm();
 }
 
 function openBubbleEditor() {
   state.bubbleEditorOpen = true;
+  state.bubbleDraftLines = [...getCurrentLines()];
+  state.selectedBubbleLineIndex = 0;
+  state.bubbleLineEditMode = null;
   renderBubbleEditor();
   renderShellControls();
-
-  window.setTimeout(() => {
-    bubbleEditor.focus();
-    bubbleEditor.setSelectionRange(bubbleEditor.value.length, bubbleEditor.value.length);
-  }, 120);
 }
 
 function closeBubbleEditor() {
   state.bubbleEditorOpen = false;
+  state.bubbleLineEditMode = null;
   renderShellControls();
 }
 
@@ -333,9 +426,19 @@ function renderActionButtons() {
   });
 }
 
+function setCompanionMode(enabled) {
+  state.companionMode = Boolean(enabled);
+  window.localStorage.setItem("desktopPetCompanionMode", String(state.companionMode));
+  if (state.companionMode) {
+    state.controlsOpen = false;
+    state.controlsHoverOpen = false;
+  }
+  renderShellControls();
+}
+
 function ensureBubbleContent() {
   if (!state.shellSettings.bubbleEnabled) {
-    bubbleText.textContent = "";
+    setBubbleText("");
     return;
   }
 
@@ -344,15 +447,19 @@ function ensureBubbleContent() {
   const lines = getCurrentLines();
   const safeIndex = Math.min(state.bubbleIndex, lines.length - 1);
   state.bubbleIndex = Math.max(0, safeIndex);
-  bubbleText.textContent = lines[state.bubbleIndex] || state.selectedPet.name;
+  setBubbleText(lines[state.bubbleIndex] || state.selectedPet.name);
 }
 
 function renderShellControls() {
   document.body.classList.toggle("bubble-editor-open", state.bubbleEditorOpen);
   document.body.classList.toggle("bubbles-off", !state.shellSettings.bubbleEnabled);
-  document.body.classList.toggle("controls-visible", state.controlsOpen || state.controlsHoverOpen);
+  document.body.classList.toggle("companion-mode", state.companionMode);
+  document.body.classList.toggle("controls-visible", !state.companionMode && (state.controlsOpen || state.controlsHoverOpen));
   pinButton.classList.toggle("active", state.shellSettings.alwaysOnTop);
   bubbleToggleButton.classList.toggle("active", state.shellSettings.bubbleEnabled);
+  companionButton.classList.toggle("active", state.companionMode);
+  companionButton.title = state.companionMode ? "Exit Companion Mode by double-clicking pet" : "Companion Mode";
+  companionButton.setAttribute("aria-label", companionButton.title);
   bubbleEditorModal.setAttribute("aria-hidden", String(!state.bubbleEditorOpen));
   ensureBubbleContent();
 }
@@ -363,7 +470,7 @@ function render() {
   document.documentElement.style.setProperty("--pet-secondary", pet.theme.secondary);
   document.documentElement.style.setProperty("--pet-accent", pet.theme.accent);
   petTitle.textContent = pet.name;
-  bubbleText.textContent = state.shellSettings.bubbleEnabled ? getCurrentLines()[state.bubbleIndex] : "";
+  setBubbleText(state.shellSettings.bubbleEnabled ? getCurrentLines()[state.bubbleIndex] : "");
   renderBubbleEditor();
   renderActionButtons();
   renderShellControls();
@@ -371,6 +478,7 @@ function render() {
 
 petButton.addEventListener("click", () => {
   if (Date.now() < suppressPetClickUntil) return;
+  if (state.companionMode) return;
   cycleBubble(1);
   activateAction("waving");
 });
@@ -403,17 +511,79 @@ editBubbleButton.addEventListener("click", async () => {
   openBubbleEditor();
 });
 
+companionButton.addEventListener("click", () => {
+  setCompanionMode(true);
+});
+
 petRoom.addEventListener("wheel", (event) => {
   event.preventDefault();
   const delta = event.deltaY > 0 ? -0.06 : 0.06;
   setPetScale(state.petScale + delta);
 }, { passive: false });
 
+addBubbleLineButton.addEventListener("click", () => {
+  openBubbleLineForm("add");
+});
+
+editBubbleLineButton.addEventListener("click", () => {
+  if (!state.bubbleDraftLines.length) return;
+  openBubbleLineForm("edit");
+});
+
+deleteBubbleLineButton.addEventListener("click", () => {
+  if (!state.bubbleDraftLines.length) return;
+  state.bubbleDraftLines.splice(state.selectedBubbleLineIndex, 1);
+  state.selectedBubbleLineIndex = Math.max(0, Math.min(state.selectedBubbleLineIndex, state.bubbleDraftLines.length - 1));
+  closeBubbleLineForm();
+});
+
+confirmBubbleLineButton.addEventListener("click", () => {
+  confirmBubbleLineForm();
+});
+
+cancelBubbleLineButton.addEventListener("click", () => {
+  closeBubbleLineForm();
+});
+
+bubbleLineInput.addEventListener("keydown", (event) => {
+  if (event.key === "Enter") {
+    event.preventDefault();
+    confirmBubbleLineForm();
+  }
+  if (event.key === "Escape") {
+    event.preventDefault();
+    closeBubbleLineForm();
+  }
+});
+
+bubbleLineList.addEventListener("keydown", (event) => {
+  if (!state.bubbleDraftLines.length) return;
+
+  if (event.key === "ArrowDown") {
+    event.preventDefault();
+    state.selectedBubbleLineIndex = Math.min(state.selectedBubbleLineIndex + 1, state.bubbleDraftLines.length - 1);
+    renderBubbleEditor();
+  }
+
+  if (event.key === "ArrowUp") {
+    event.preventDefault();
+    state.selectedBubbleLineIndex = Math.max(state.selectedBubbleLineIndex - 1, 0);
+    renderBubbleEditor();
+  }
+
+  if (event.key === "Enter") {
+    event.preventDefault();
+    openBubbleLineForm("edit");
+  }
+
+  if (event.key === "Delete") {
+    event.preventDefault();
+    deleteBubbleLineButton.click();
+  }
+});
+
 saveBubbleButton.addEventListener("click", () => {
-  const lines = bubbleEditor.value
-    .split(/\r?\n/)
-    .map((line) => line.trim())
-    .filter(Boolean);
+  const lines = normalizeBubbleLines(state.bubbleDraftLines);
   const overrides = readBubbleOverrides();
   overrides[state.selectedPet.id] = lines.length ? lines : state.selectedPet.bubbleText;
   writeBubbleOverrides(overrides);
@@ -428,8 +598,15 @@ resetBubbleButton.addEventListener("click", () => {
   delete overrides[state.selectedPet.id];
   writeBubbleOverrides(overrides);
   state.bubbleIndex = 0;
+  state.bubbleDraftLines = [...state.selectedPet.bubbleText];
+  state.selectedBubbleLineIndex = 0;
+  state.bubbleLineEditMode = null;
   render();
   scheduleBubbleRotation();
+});
+
+cancelBubbleEditorButton.addEventListener("click", () => {
+  closeBubbleEditor();
 });
 
 bubbleEditorBackdrop.addEventListener("click", () => {
@@ -479,11 +656,17 @@ petCluster.addEventListener("pointercancel", endPetDrag);
 
 function setControlsHoverOpen(open) {
   window.clearTimeout(controlsHoverTimer);
+  if (state.companionMode) {
+    state.controlsHoverOpen = false;
+    renderShellControls();
+    return;
+  }
   state.controlsHoverOpen = open;
   renderShellControls();
 }
 
 petCluster.addEventListener("mouseenter", () => {
+  if (state.companionMode) return;
   setControlsHoverOpen(true);
 });
 
@@ -492,11 +675,20 @@ petCluster.addEventListener("mouseleave", () => {
 });
 
 actionBar.addEventListener("mouseenter", () => {
+  if (state.companionMode) return;
   setControlsHoverOpen(true);
 });
 
 actionBar.addEventListener("mouseleave", () => {
   controlsHoverTimer = window.setTimeout(() => setControlsHoverOpen(false), 180);
+});
+
+petCluster.addEventListener("dblclick", (event) => {
+  if (!state.companionMode) return;
+  event.preventDefault();
+  event.stopPropagation();
+  suppressPetClickUntil = Date.now() + 250;
+  setCompanionMode(false);
 });
 
 document.addEventListener("click", (event) => {
