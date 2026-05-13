@@ -711,6 +711,111 @@ body.dragging-pet .pet-canvas {
   font-size: 11px;
 }
 
+.chat-window-modal {
+  inset: auto auto 14px 50%;
+  width: min(252px, calc(100vw - 18px));
+  padding: 0;
+  display: block;
+  transform: translateX(-50%) translateY(8px);
+}
+
+body.chat-window-open .chat-window-modal {
+  transform: translateX(-50%) translateY(0);
+}
+
+.chat-quick-compose {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 28px 28px;
+  gap: 5px;
+  align-items: center;
+  padding: 6px 7px;
+  border: 1px solid rgba(87, 71, 53, 0.1);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.95);
+  box-shadow: 0 10px 28px rgba(68, 55, 42, 0.12);
+  pointer-events: auto;
+}
+
+.chat-quick-compose input {
+  min-width: 0;
+  height: 30px;
+  padding: 0 8px;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--ink);
+  font: inherit;
+  font-size: 12px;
+}
+
+.chat-quick-compose input:focus {
+  outline: 0;
+}
+
+.chat-icon-button,
+.chat-mini-button {
+  display: grid;
+  place-items: center;
+  padding: 0;
+  border: 1px solid rgba(87, 71, 53, 0.1);
+  border-radius: 999px;
+  background: rgba(246, 244, 240, 0.95);
+  color: var(--ink);
+  cursor: pointer;
+  line-height: 1;
+}
+
+.chat-icon-button {
+  width: 28px;
+  height: 28px;
+  font-size: 13px;
+}
+
+.chat-mini-button {
+  width: 24px;
+  height: 24px;
+  font-size: 12px;
+}
+
+.chat-icon-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.48;
+}
+
+.chat-compose-meta,
+.chat-reply-actions {
+  grid-column: 1 / -1;
+}
+
+.chat-compose-meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  min-height: 12px;
+  padding: 0 6px 2px;
+}
+
+.chat-inline-status {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--muted);
+  font-size: 9px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.chat-reply-actions {
+  display: flex;
+  justify-content: center;
+  gap: 5px;
+  padding-bottom: 1px;
+}
+
+.chat-reply-actions[hidden] {
+  display: none;
+}
+
 .action-button.active {
   border-color: color-mix(in srgb, var(--pet-secondary) 72%, #a96f31);
   background: color-mix(in srgb, var(--pet-secondary) 18%, white);

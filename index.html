@@ -110,34 +110,24 @@
           <button class="editor-button" id="saveChatSettingsButton" type="button">Save Settings</button>
           <span class="chat-settings-hint" id="chatSettingsHint"></span>
         </div>
+        <button id="clearChatMemoryButton" type="button" hidden>Clear Memory</button>
       </section>
     </div>
 
     <div class="chat-window-modal" id="chatWindowModal" aria-hidden="true">
-      <div class="chat-window-backdrop" id="chatWindowBackdrop"></div>
-      <section class="chat-window-dialog" aria-label="Pet Chat">
-        <div class="chat-window-header">
-          <div>
-            <h2 id="chatWindowTitle">Pet Chat</h2>
-            <p id="chatWindowSubtitle">recent memory 0</p>
-          </div>
-          <div class="chat-window-actions">
-            <button class="editor-button" id="clearChatMemoryButton" type="button">Clear</button>
-            <button class="editor-button" id="closeChatWindowButton" type="button">Close</button>
-          </div>
+      <form class="chat-quick-compose" id="chatComposeForm" aria-label="Pet Chat">
+        <input id="chatInput" type="text" maxlength="100" placeholder="输入不超过 100 字">
+        <button class="chat-icon-button" id="sendChatButton" type="submit" title="Send" aria-label="Send">➤</button>
+        <button class="chat-icon-button" id="closeChatWindowButton" type="button" title="Close" aria-label="Close">×</button>
+        <div class="chat-compose-meta">
+          <span class="chat-counter" id="chatCounter">0 / 100</span>
+          <span class="chat-inline-status" id="chatWindowSubtitle"></span>
         </div>
-        <div class="chat-history" id="chatHistory" aria-live="polite"></div>
-        <form class="chat-compose" id="chatComposeForm">
-          <label class="chat-field chat-field-wide" for="chatInput">
-            <span>Message</span>
-            <textarea id="chatInput" maxlength="100" rows="3" placeholder="输入不超过 100 字"></textarea>
-          </label>
-          <div class="chat-compose-footer">
-            <span class="chat-counter" id="chatCounter">0 / 100</span>
-            <button class="editor-button" id="sendChatButton" type="submit">Send</button>
-          </div>
-        </form>
-      </section>
+        <div class="chat-reply-actions" id="chatReplyActions" hidden>
+          <button class="chat-mini-button" id="archiveChatReplyButton" type="button" title="归档为台词" aria-label="归档为台词">💾</button>
+          <button class="chat-mini-button" id="keepChatReplyButton" type="button" title="只保留记忆" aria-label="只保留记忆">🧠</button>
+        </div>
+      </form>
     </div>
 
     <script src="./pet-data.js"></script>

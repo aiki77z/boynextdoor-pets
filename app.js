@@ -56,6 +56,7 @@ const state = {
   bubbleLineEditMode: null,
   chatDraft: "",
   chatSending: false,
+  lastChatReply: "",
   chatBubblePinnedUntil: 0,
   chatSettings: {
     enabled: false,
@@ -120,16 +121,16 @@ const chatApiKeyInput = document.querySelector("#chatApiKeyInput");
 const saveChatSettingsButton = document.querySelector("#saveChatSettingsButton");
 const clearChatMemoryButton = document.querySelector("#clearChatMemoryButton");
 const chatSettingsHint = document.querySelector("#chatSettingsHint");
-const chatHistory = document.querySelector("#chatHistory");
 const chatComposeForm = document.querySelector("#chatComposeForm");
 const chatInput = document.querySelector("#chatInput");
 const chatCounter = document.querySelector("#chatCounter");
 const sendChatButton = document.querySelector("#sendChatButton");
 const chatWindowModal = document.querySelector("#chatWindowModal");
-const chatWindowBackdrop = document.querySelector("#chatWindowBackdrop");
 const closeChatWindowButton = document.querySelector("#closeChatWindowButton");
-const chatWindowTitle = document.querySelector("#chatWindowTitle");
 const chatWindowSubtitle = document.querySelector("#chatWindowSubtitle");
+const chatReplyActions = document.querySelector("#chatReplyActions");
+const archiveChatReplyButton = document.querySelector("#archiveChatReplyButton");
+const keepChatReplyButton = document.querySelector("#keepChatReplyButton");
 
 petCanvas.width = ATLAS.cellWidth * 2;
 petCanvas.height = ATLAS.cellHeight * 2;
@@ -174,44 +175,28 @@ function setChatBubble(text) {
   setBubbleText(text);
 }
 
-function historyLabelForRole(role) {
-  return role === "assistant" ? state.selectedPet.name : "You";
-}
-
 function updateChatCounter() {
   const length = Array.from(chatInput.value).length;
   chatCounter.textContent = `${length} / ${CHAT_INPUT_LIMIT}`;
 }
 
-function renderChatHistory() {
-  const history = Array.isArray(state.chatSettings.history) ? state.chatSettings.history : [];
-  chatHistory.innerHTML = "";
+function setReplyArchiveOptionsVisible(visible) {
+  chatReplyActions.hidden = !visible;
+}
 
-  if (!history.length) {
-    const empty = document.createElement("p");
-    empty.className = "chat-history-empty";
-    empty.textContent = "No memory yet. Say something small.";
-    chatHistory.appendChild(empty);
-    return;
-  }
+function archiveLastChatReply() {
+  const reply = String(state.lastChatReply || "").trim();
+  if (!reply) return;
 
-  history.forEach((entry) => {
-    const row = document.createElement("div");
-    row.className = `chat-row ${entry.role === "assistant" ? "assistant" : "user"}`;
-
-    const label = document.createElement("span");
-    label.className = "chat-role";
-    label.textContent = historyLabelForRole(entry.role);
-
-    const bubble = document.createElement("div");
-    bubble.className = "chat-bubble";
-    bubble.textContent = entry.content;
-
-    row.append(label, bubble);
-    chatHistory.appendChild(row);
-  });
-
-  chatHistory.scrollTop = chatHistory.scrollHeight;
+  const overrides = readBubbleOverrides();
+  const existing = getBubbleLinesForPet(state.selectedPet);
+  const nextLines = existing.includes(reply) ? existing : [...existing, reply];
+  overrides[state.selectedPet.id] = nextLines;
+  writeBubbleOverrides(overrides);
+  state.bubbleIndex = nextLines.length - 1;
+  setBubbleText(reply);
+  setReplyArchiveOptionsVisible(false);
+  setChatStatus("已归档为台词。");
 }
 
 function applyChatSettings(nextState) {
@@ -232,11 +217,8 @@ function applyChatSettings(nextState) {
     ? `已保存 ${state.chatSettings.apiKeyHint}，留空则保留当前 Key`
     : "Enable AI 时填写，留空则保留当前 Key";
   chatPanelSubtitle.textContent = `${state.selectedPet.name} · model settings`;
-  chatWindowTitle.textContent = `${state.selectedPet.name} Chat`;
   chatWindowSubtitle.textContent = `recent memory ${state.chatSettings.historyCount || 0}`;
   sendChatButton.disabled = state.chatSending || !chatReady;
-  clearChatMemoryButton.disabled = state.chatSending;
-  renderChatHistory();
 }
 
 async function refreshChatState() {
@@ -306,12 +288,14 @@ function openChatWindow() {
   renderShellControls();
   refreshChatState();
   updateChatCounter();
+  setReplyArchiveOptionsVisible(Boolean(state.lastChatReply));
   window.setTimeout(() => chatInput.focus(), 40);
 }
 
 function closeChatWindow() {
   state.chatWindowOpen = false;
   state.chatSending = false;
+  setReplyArchiveOptionsVisible(false);
   if (window.desktopPetShell) {
     window.desktopPetShell.setChatWindowOpen(false);
   }
@@ -470,6 +454,8 @@ function selectPet(petId, options = {}) {
 
   state.selectedPet = nextPet;
   state.bubbleIndex = 0;
+  state.lastChatReply = "";
+  setReplyArchiveOptionsVisible(false);
   setAction(DEFAULT_ACTION);
   render();
   scheduleBubbleRotation();
@@ -873,17 +859,23 @@ closeChatWindowButton.addEventListener("click", () => {
   closeChatWindow();
 });
 
-chatWindowBackdrop.addEventListener("click", () => {
-  closeChatWindow();
-});
-
 chatInput.addEventListener("input", () => {
   const clamped = clampTextLength(chatInput.value, CHAT_INPUT_LIMIT);
   if (clamped !== chatInput.value) {
     chatInput.value = clamped;
   }
   state.chatDraft = chatInput.value;
+  setReplyArchiveOptionsVisible(false);
   updateChatCounter();
+});
+
+archiveChatReplyButton.addEventListener("click", () => {
+  archiveLastChatReply();
+});
+
+keepChatReplyButton.addEventListener("click", () => {
+  setReplyArchiveOptionsVisible(false);
+  setChatStatus("已保留在记忆里。");
 });
 
 saveChatSettingsButton.addEventListener("click", async () => {
@@ -930,6 +922,7 @@ chatComposeForm.addEventListener("submit", async (event) => {
 
   state.chatSending = true;
   sendChatButton.disabled = true;
+  setReplyArchiveOptionsVisible(false);
   setChatStatus("正在等宠物回复...");
   previewAction("review", 2000, { quiet: true });
   if (state.shellSettings.bubbleEnabled) {
@@ -948,6 +941,7 @@ chatComposeForm.addEventListener("submit", async (event) => {
       },
       message
     });
+    state.lastChatReply = result.reply;
     state.chatDraft = "";
     chatInput.value = "";
     updateChatCounter();
@@ -957,8 +951,9 @@ chatComposeForm.addEventListener("submit", async (event) => {
       historyCount: result.historyCount
     });
     setChatBubble(result.reply);
+    setReplyArchiveOptionsVisible(true);
     activateAction("waving", { quiet: true });
-    setChatStatus("收到回复了。");
+    setChatStatus("可以归档为台词。");
   } catch (error) {
     setChatStatus(error.message || "发送失败。");
     if (state.shellSettings.bubbleEnabled) {
@@ -1050,7 +1045,7 @@ petCluster.addEventListener("dblclick", (event) => {
 });
 
 document.addEventListener("click", (event) => {
-  const clickedInsideControls = event.target.closest(".action-bar, .bubble-editor-dialog, .chat-panel-dialog, .chat-window-dialog");
+  const clickedInsideControls = event.target.closest(".action-bar, .bubble-editor-dialog, .chat-panel-dialog, .chat-quick-compose");
   const clickedPet = event.target.closest("#petButton");
   if (clickedPet) {
     return;

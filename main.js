@@ -619,9 +619,6 @@ function getWindowSizeForPetScale(scale, options = {}) {
   const normalizedScale = clampPetScale(scale);
   const petWidth = 220 * normalizedScale;
   const petHeight = petWidth / 0.92;
-  if (options.chatWindowOpen) {
-    return { width: 380, height: 500 };
-  }
   if (options.chatPanelOpen) {
     return { width: 460, height: 430 };
   }
