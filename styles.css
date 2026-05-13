@@ -41,6 +41,8 @@ button {
 
 .pet-stage {
   position: relative;
+  width: 100%;
+  height: 100%;
   overflow: visible;
   background: transparent;
   backdrop-filter: blur(14px);
@@ -163,8 +165,8 @@ body.controls-visible .floating-toolbar {
 
 .bubble {
   position: absolute;
-  z-index: 10;
-  top: calc(50% - ((220px * var(--pet-scale)) / 0.92 / 2) - 50px);
+  z-index: 40;
+  top: max(12px, calc(50% - ((220px * var(--pet-scale)) / 0.92 / 2) - 50px));
   left: 50%;
   width: min(190px, calc(100vw - 18px));
   height: 42px;
@@ -186,6 +188,7 @@ body.controls-visible .floating-toolbar {
 
 body.bubbles-off .bubble {
   opacity: 0;
+  visibility: hidden;
 }
 
 .pet-button {

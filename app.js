@@ -335,6 +335,20 @@ function renderActionButtons() {
   });
 }
 
+function ensureBubbleContent() {
+  if (!state.shellSettings.bubbleEnabled) {
+    bubbleText.textContent = "";
+    return;
+  }
+
+  if (bubbleText.textContent.trim()) return;
+
+  const lines = getCurrentLines();
+  const safeIndex = Math.min(state.bubbleIndex, lines.length - 1);
+  state.bubbleIndex = Math.max(0, safeIndex);
+  bubbleText.textContent = lines[state.bubbleIndex] || state.selectedPet.name;
+}
+
 function renderShellControls() {
   document.body.classList.toggle("bubble-editor-open", state.bubbleEditorOpen);
   document.body.classList.toggle("bubbles-off", !state.shellSettings.bubbleEnabled);
@@ -342,6 +356,7 @@ function renderShellControls() {
   pinButton.classList.toggle("active", state.shellSettings.alwaysOnTop);
   bubbleToggleButton.classList.toggle("active", state.shellSettings.bubbleEnabled);
   bubbleEditorModal.setAttribute("aria-hidden", String(!state.bubbleEditorOpen));
+  ensureBubbleContent();
 }
 
 function render() {
