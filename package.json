@@ -1,16 +1,18 @@
 {
   "name": "bnd-desktop-pets",
-  "version": "1.0.1",
+  "version": "1.0.3",
   "private": true,
-  "description": "Electron desktop pet shell wired to six finalized hatch-pet atlases.",
+  "description": "Electron desktop pet shell wired to six finalized BOYNEXTDOOR pet atlases.",
+  "author": "BOYNEXTDOOR Pets",
   "main": "main.js",
   "scripts": {
     "start": "electron .",
     "dev": "electron .",
-    "dist:win": "electron-builder --win nsis portable"
+    "dist:win": "electron-builder --win --x64 --publish never",
+    "dist:mac": "electron-builder --mac dmg zip"
   },
   "devDependencies": {
-    "electron": "^37.10.3",
+    "electron": "22.3.27",
     "electron-builder": "^26.0.12"
   },
   "build": {
@@ -19,21 +21,32 @@
     "directories": {
       "output": "dist"
     },
+    "npmRebuild": false,
     "files": [
       "app.js",
       "build/icon.ico",
+      "build/icon.icns",
       "index.html",
       "main.js",
       "package.json",
       "pet-data.js",
       "preload.js",
       "styles.css",
-      "hatch-runs/**/*"
+      "hatch-runs/catbbi/final/spritesheet.webp",
+      "hatch-runs/dalring/final/spritesheet.webp",
+      "hatch-runs/myngmyng/final/spritesheet.webp",
+      "hatch-runs/hantatpung/final/spritesheet.webp",
+      "hatch-runs/312/final/spritesheet.webp",
+      "hatch-runs/woonbaby/final/spritesheet.webp"
     ],
     "extraResources": [
       {
         "from": "build/icon.ico",
         "to": "icon.ico"
+      },
+      {
+        "from": "build/icon.icns",
+        "to": "icon.icns"
       }
     ],
     "win": {
@@ -43,11 +56,23 @@
       ],
       "icon": "build/icon.ico"
     },
+    "mac": {
+      "target": [
+        "dmg",
+        "zip"
+      ],
+      "icon": "build/icon.icns",
+      "category": "public.app-category.entertainment"
+    },
     "nsis": {
       "oneClick": false,
       "allowToChangeInstallationDirectory": true,
       "createDesktopShortcut": true,
-      "createStartMenuShortcut": true
+      "createStartMenuShortcut": true,
+      "artifactName": "BOYNEXTDOOR-Pets-win11-Setup-${version}.${ext}"
+    },
+    "portable": {
+      "artifactName": "BOYNEXTDOOR-Pets-win11-${version}.${ext}"
     }
   }
 }

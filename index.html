@@ -1,4 +1,4 @@
-<!doctype html>
+﻿<!doctype html>
 <html lang="zh-CN">
   <head>
     <meta charset="utf-8">
@@ -24,14 +24,15 @@
         <div class="action-bar" aria-label="Pet actions">
           <button class="shell-button" id="idleButton" type="button" title="Idle" aria-label="Idle">😊</button>
           <button class="shell-button" id="talkButton" type="button" title="Next Bubble" aria-label="Next Bubble">💬</button>
-          <button class="shell-button" id="nextPetButton" type="button" title="Next Pet" aria-label="Next Pet">🐾</button>
+          <button class="shell-button shell-button-danger" id="closePetButton" type="button" title="Close This Pet" aria-label="Close This Pet">🐾</button>
           <button class="shell-button" id="scaleButton" type="button" title="Scale Pet" aria-label="Scale Pet">🔍</button>
+          <button class="shell-button" id="renamePetButton" type="button" title="Rename Pet" aria-label="Rename Pet">👤</button>
           <button class="shell-button" id="editBubbleButton" type="button" title="Edit Bubble Text" aria-label="Edit Bubble Text">✏️</button>
           <button class="shell-button" id="bubbleToggleButton" type="button" title="Toggle Bubbles" aria-label="Toggle Bubbles">🗨️</button>
           <button class="shell-button" id="companionButton" type="button" title="Companion Mode" aria-label="Companion Mode">♡</button>
           <button class="shell-button" id="pinButton" type="button" title="Always On Top" aria-label="Always On Top">📌</button>
-          <button class="shell-button" id="hideButton" type="button" title="Hide To Tray" aria-label="Hide To Tray">🙈</button>
-          <button class="shell-button shell-button-danger" id="quitButton" type="button" title="Quit" aria-label="Quit">✕</button>
+          <button class="shell-button" id="hideButton" type="button" title="Hide All To Tray" aria-label="Hide All To Tray">🙈</button>
+          <button class="shell-button shell-button-danger" id="quitButton" type="button" title="Quit App" aria-label="Quit App">✕</button>
           <button class="action-button" data-action="running-right" type="button">Right</button>
           <button class="action-button" data-action="running-left" type="button">Left</button>
           <button class="action-button" data-action="waving" type="button">Wave</button>
@@ -41,6 +42,7 @@
           <button class="action-button" data-action="running" type="button">Busy</button>
           <button class="action-button" data-action="review" type="button">Review</button>
         </div>
+        <div class="pet-picker" id="petPicker" aria-label="Choose pet"></div>
       </section>
     </main>
 
@@ -70,6 +72,25 @@
           <button class="editor-button" id="saveBubbleButton" type="button">Save</button>
           <button class="editor-button" id="resetBubbleButton" type="button">Restore Default</button>
           <button class="editor-button" id="cancelBubbleEditorButton" type="button">Cancel</button>
+        </div>
+      </section>
+    </div>
+
+    <div class="name-editor-modal" id="nameEditorModal" aria-hidden="true">
+      <div class="name-editor-backdrop" id="nameEditorBackdrop"></div>
+      <section class="name-editor-dialog" aria-label="Rename Pet">
+        <div class="bubble-editor-header">
+          <h2>Pet Name</h2>
+        </div>
+        <div class="name-editor-form">
+          <label for="petNameInput">Name</label>
+          <input id="petNameInput" type="text" maxlength="12" placeholder="输入新的名字">
+          <p class="name-editor-hint">最多 12 个字，留空可恢复默认名。</p>
+        </div>
+        <div class="name-editor-actions">
+          <button class="editor-button" id="savePetNameButton" type="button">Save</button>
+          <button class="editor-button" id="resetPetNameButton" type="button">Default</button>
+          <button class="editor-button" id="cancelPetNameButton" type="button">Cancel</button>
         </div>
       </section>
     </div>

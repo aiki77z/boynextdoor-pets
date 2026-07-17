@@ -1,4 +1,9 @@
-const pets = window.BND_PETS;
+﻿const pets = window.BND_PETS;
+const APP_MODE = document.documentElement.dataset.appMode || "desktop";
+const IS_IPAD_MODE = APP_MODE === "ipad";
+const HAS_DESKTOP_SHELL = Boolean(window.desktopPetShell);
+const DEFAULT_PET_ID = "catbbi";
+const DEFAULT_PET = pets.find((pet) => pet.id === DEFAULT_PET_ID) || pets[0];
 
 const ATLAS = {
   cellWidth: 192,
@@ -18,12 +23,12 @@ const ACTIONS = [
 ];
 
 const PET_SPRITESHEETS = {
-  catbbi: "./hatch-runs/catbbi/final/spritesheet.webp",
-  dalring: "./hatch-runs/dalring/final/spritesheet.webp",
-  myngmyng: "./hatch-runs/myngmyng/final/spritesheet.webp",
-  hantatpung: "./hatch-runs/hantatpung/final/spritesheet.webp",
-  "312": "./hatch-runs/312/final/spritesheet.webp",
-  woonbaby: "./hatch-runs/woonbaby/final/spritesheet.webp"
+  catbbi: "./hatch-runs/catbbi/final/spritesheet.webp?v=20260717-1",
+  dalring: "./hatch-runs/dalring/final/spritesheet.webp?v=20260717-1",
+  myngmyng: "./hatch-runs/myngmyng/final/spritesheet.webp?v=20260717-1",
+  hantatpung: "./hatch-runs/hantatpung/final/spritesheet.webp?v=20260717-1",
+  "312": "./hatch-runs/312/final/spritesheet.webp?v=20260717-1",
+  woonbaby: "./hatch-runs/woonbaby/final/spritesheet.webp?v=20260717-1"
 };
 
 const AUTO_ACTIONS = [
@@ -38,7 +43,7 @@ const AUTO_ACTIONS = [
 const ACTION_MAP = Object.fromEntries(ACTIONS.map((action) => [action.id, action]));
 
 const state = {
-  selectedPet: pets[0],
+  selectedPet: DEFAULT_PET,
   action: "idle",
   bubbleIndex: 0,
   resetTimer: null,
@@ -47,8 +52,9 @@ const state = {
   actionStartedAt: performance.now(),
   controlsOpen: false,
   controlsHoverOpen: false,
-  companionMode: window.localStorage.getItem("desktopPetCompanionMode") === "true",
+  companionMode: false,
   bubbleEditorOpen: false,
+  nameEditorOpen: false,
   bubbleDraftLines: [],
   selectedBubbleLineIndex: 0,
   bubbleLineEditMode: null,
@@ -56,10 +62,14 @@ const state = {
     alwaysOnTop: true,
     openAtLogin: true,
     bubbleEnabled: true,
-    selectedPetId: pets[0].id
+    petId: DEFAULT_PET.id,
+    activePetIds: [DEFAULT_PET.id],
+    hideDockIcon: false
   },
-  petScale: Number(window.localStorage.getItem("desktopPetScale") || "1")
+  petScale: 0.6
 };
+
+const ipadDragOffset = { x: 0, y: 0 };
 
 const petTitle = document.querySelector("#petTitle");
 const petCanvas = document.querySelector("#petCanvas");
@@ -67,6 +77,7 @@ const petCtx = petCanvas.getContext("2d");
 const petRoom = document.querySelector("#petRoom");
 const petCluster = document.querySelector("#petCluster");
 const petButton = document.querySelector("#petButton");
+const petPicker = document.querySelector("#petPicker");
 const actionBar = document.querySelector(".action-bar");
 const bubbleText = document.querySelector("#bubbleText");
 const actionButtons = Array.from(document.querySelectorAll(".action-button"));
@@ -74,14 +85,21 @@ const pinButton = document.querySelector("#pinButton");
 const hideButton = document.querySelector("#hideButton");
 const quitButton = document.querySelector("#quitButton");
 const talkButton = document.querySelector("#talkButton");
-const nextPetButton = document.querySelector("#nextPetButton");
+const closePetButton = document.querySelector("#closePetButton");
 const bubbleToggleButton = document.querySelector("#bubbleToggleButton");
 const companionButton = document.querySelector("#companionButton");
 const idleButton = document.querySelector("#idleButton");
 const scaleButton = document.querySelector("#scaleButton");
+const renamePetButton = document.querySelector("#renamePetButton");
 const editBubbleButton = document.querySelector("#editBubbleButton");
 const bubbleEditorModal = document.querySelector("#bubbleEditorModal");
 const bubbleEditorBackdrop = document.querySelector("#bubbleEditorBackdrop");
+const nameEditorModal = document.querySelector("#nameEditorModal");
+const nameEditorBackdrop = document.querySelector("#nameEditorBackdrop");
+const petNameInput = document.querySelector("#petNameInput");
+const savePetNameButton = document.querySelector("#savePetNameButton");
+const resetPetNameButton = document.querySelector("#resetPetNameButton");
+const cancelPetNameButton = document.querySelector("#cancelPetNameButton");
 const bubbleLineList = document.querySelector("#bubbleLineList");
 const bubbleLineForm = document.querySelector("#bubbleLineForm");
 const bubbleLineInput = document.querySelector("#bubbleLineInput");
@@ -99,12 +117,16 @@ petCanvas.height = ATLAS.cellHeight * 2;
 
 const imageCache = new Map();
 const BUBBLE_TEXT_STORAGE_KEY = "desktopPetCustomBubbleText";
-const PET_SCALE_STEPS = [0.35, 0.5, 0.65, 0.8, 1];
+const PET_NAME_STORAGE_KEY = "desktopPetCustomNames";
+const PET_NAME_MAX_LENGTH = 12;
+const PET_SCALE_STEPS = [0.4, 0.5, 0.6, 0.75, 0.9];
 const DEFAULT_ACTION = "idle";
 
 let dragState = null;
 let suppressPetClickUntil = 0;
 let controlsHoverTimer = null;
+let currentFrameBounds = { x: 0, y: 0, width: petCanvas.width, height: petCanvas.height };
+let petInputTransparent = false;
 
 function readBubbleOverrides() {
   try {
@@ -118,6 +140,39 @@ function writeBubbleOverrides(overrides) {
   window.localStorage.setItem(BUBBLE_TEXT_STORAGE_KEY, JSON.stringify(overrides));
 }
 
+function readNameOverrides() {
+  try {
+    return JSON.parse(window.localStorage.getItem(PET_NAME_STORAGE_KEY) || "{}");
+  } catch {
+    return {};
+  }
+}
+
+function writeNameOverrides(overrides) {
+  window.localStorage.setItem(PET_NAME_STORAGE_KEY, JSON.stringify(overrides));
+}
+
+function getPetDisplayName(pet) {
+  const overrides = readNameOverrides();
+  const customName = String(overrides[pet.id] || "").trim();
+  return customName || pet.name;
+}
+
+function fitPetTitle() {
+  petTitle.style.fontSize = "";
+  let size = 9;
+  while (petTitle.scrollWidth > petTitle.clientWidth && size > 7) {
+    size -= 0.5;
+    petTitle.style.fontSize = `${size}px`;
+  }
+}
+
+function setPetTitleText(text) {
+  petTitle.textContent = text;
+  petTitle.title = text;
+  window.requestAnimationFrame(fitPetTitle);
+}
+
 function getBubbleLinesForPet(pet) {
   const overrides = readBubbleOverrides();
   const custom = overrides[pet.id];
@@ -125,11 +180,10 @@ function getBubbleLinesForPet(pet) {
   return pet.bubbleText;
 }
 
-function setPetScale(nextScale) {
+function setPetScale(nextScale, options = {}) {
   state.petScale = Math.min(1, Math.max(0.35, nextScale));
   document.documentElement.style.setProperty("--pet-scale", String(state.petScale));
-  window.localStorage.setItem("desktopPetScale", String(state.petScale));
-  if (window.desktopPetShell) {
+  if (options.syncShell !== false && HAS_DESKTOP_SHELL) {
     window.desktopPetShell.setPetScale(state.petScale);
   }
   updateScaleButtonLabel();
@@ -145,6 +199,39 @@ function cyclePetScale() {
   const currentIndex = PET_SCALE_STEPS.findIndex((step) => Math.abs(step - state.petScale) < 0.05);
   const nextIndex = currentIndex === -1 ? 1 : (currentIndex + 1) % PET_SCALE_STEPS.length;
   setPetScale(PET_SCALE_STEPS[nextIndex]);
+}
+
+function openPetNameEditor() {
+  state.nameEditorOpen = true;
+  state.controlsOpen = false;
+  state.controlsHoverOpen = false;
+  petNameInput.value = getPetDisplayName(state.selectedPet);
+  renderShellControls();
+  window.setTimeout(() => {
+    petNameInput.focus();
+    petNameInput.select();
+  }, 40);
+}
+
+function closePetNameEditor() {
+  state.nameEditorOpen = false;
+  renderShellControls();
+}
+
+function savePetNameFromEditor() {
+  const pet = state.selectedPet;
+  const nextName = petNameInput.value;
+
+  const overrides = readNameOverrides();
+  const normalized = nextName.trim();
+  if (normalized) {
+    overrides[pet.id] = normalized.slice(0, PET_NAME_MAX_LENGTH);
+  } else {
+    delete overrides[pet.id];
+  }
+  writeNameOverrides(overrides);
+  render();
+  closePetNameEditor();
 }
 
 function randomBetween(min, max) {
@@ -177,6 +264,19 @@ function frameIndexFor(now) {
   return elapsedFrames % config.frames;
 }
 
+function jumpOffsetForFrame(frame, frameCount, scale) {
+  if (state.action !== "jumping" || frameCount <= 1) return 0;
+  const progress = frame / (frameCount - 1);
+  const arc = Math.sin(progress * Math.PI);
+  return -Math.round(22 * scale * arc);
+}
+
+function drawingScaleForAction(maxScale) {
+  const baseScale = maxScale >= 1 ? Math.floor(maxScale) || 1 : maxScale;
+  if (state.action !== "jumping") return baseScale;
+  return Math.min(baseScale, maxScale * 0.81);
+}
+
 function drawPlaceholder(message) {
   petCtx.clearRect(0, 0, petCanvas.width, petCanvas.height);
   petCtx.fillStyle = "#ffffff";
@@ -192,19 +292,62 @@ function drawFrame(now, image) {
   const frame = frameIndexFor(now);
   const sx = frame * ATLAS.cellWidth;
   const sy = config.row * ATLAS.cellHeight;
-  const padding = 6;
-  const scale = Math.min(
-    (petCanvas.width - padding * 2) / ATLAS.cellWidth,
-    (petCanvas.height - padding * 2) / ATLAS.cellHeight
+  const maxScale = Math.min(
+    petCanvas.width / ATLAS.cellWidth,
+    petCanvas.height / ATLAS.cellHeight
   );
+  const scale = drawingScaleForAction(maxScale);
   const dw = Math.round(ATLAS.cellWidth * scale);
   const dh = Math.round(ATLAS.cellHeight * scale);
   const dx = Math.round((petCanvas.width - dw) / 2);
-  const dy = Math.round((petCanvas.height - dh) / 2);
+  const dy = Math.round((petCanvas.height - dh) / 2) + jumpOffsetForFrame(frame, config.frames, scale);
 
   petCtx.clearRect(0, 0, petCanvas.width, petCanvas.height);
   petCtx.imageSmoothingEnabled = true;
+  petCtx.imageSmoothingQuality = "high";
   petCtx.drawImage(image, sx, sy, ATLAS.cellWidth, ATLAS.cellHeight, dx, dy, dw, dh);
+  currentFrameBounds = { x: dx, y: dy, width: dw, height: dh };
+}
+
+function canvasPointFromClient(clientX, clientY) {
+  const rect = petCanvas.getBoundingClientRect();
+  if (!rect.width || !rect.height) return null;
+  return {
+    x: Math.round(((clientX - rect.left) / rect.width) * petCanvas.width),
+    y: Math.round(((clientY - rect.top) / rect.height) * petCanvas.height)
+  };
+}
+
+function isPointInsideDrawnFrame(point) {
+  return point
+    && point.x >= currentFrameBounds.x
+    && point.x < currentFrameBounds.x + currentFrameBounds.width
+    && point.y >= currentFrameBounds.y
+    && point.y < currentFrameBounds.y + currentFrameBounds.height;
+}
+
+function isPetBodyAtClientPoint(clientX, clientY) {
+  const point = canvasPointFromClient(clientX, clientY);
+  if (!isPointInsideDrawnFrame(point)) return false;
+
+  try {
+    const alpha = petCtx.getImageData(point.x, point.y, 1, 1).data[3];
+    return alpha >= Number(getComputedStyle(document.documentElement).getPropertyValue("--pet-hit-alpha")) || alpha >= 18;
+  } catch {
+    return true;
+  }
+}
+
+function isPetBodyPointerEvent(event) {
+  if (event.detail === 0 && event.clientX === 0 && event.clientY === 0) return true;
+  return isPetBodyAtClientPoint(event.clientX, event.clientY);
+}
+
+function setPetInputTransparent(transparent) {
+  const next = Boolean(transparent);
+  if (!HAS_DESKTOP_SHELL || petInputTransparent === next || !window.desktopPetShell.setPetInputTransparent) return;
+  petInputTransparent = next;
+  window.desktopPetShell.setPetInputTransparent(next);
 }
 
 function animatePet(now) {
@@ -259,12 +402,7 @@ function scheduleBubbleRotation() {
   }, 7000);
 }
 
-async function syncSelectedPet(petId) {
-  if (!window.desktopPetShell) return;
-  await window.desktopPetShell.selectPet(petId);
-}
-
-function selectPet(petId, options = {}) {
+function selectPet(petId) {
   const nextPet = pets.find((pet) => pet.id === petId);
   if (!nextPet || !nextPet.ready) return;
 
@@ -273,17 +411,23 @@ function selectPet(petId, options = {}) {
   setAction(DEFAULT_ACTION);
   render();
   scheduleBubbleRotation();
-
-  if (options.syncShell !== false) {
-    syncSelectedPet(petId);
-  }
 }
 
-function selectNextPet() {
-  const readyPets = pets.filter((pet) => pet.ready);
-  const index = readyPets.findIndex((pet) => pet.id === state.selectedPet.id);
-  const next = readyPets[(index + 1) % readyPets.length];
-  selectPet(next.id);
+function renderPetPicker() {
+  if (!petPicker) return;
+  petPicker.innerHTML = "";
+
+  pets
+    .filter((pet) => pet.ready)
+    .forEach((pet) => {
+      const button = document.createElement("button");
+      button.type = "button";
+      button.className = `pet-picker-button ${pet.id === state.selectedPet.id ? "active" : ""}`;
+      button.textContent = getPetDisplayName(pet);
+      button.setAttribute("aria-pressed", String(pet.id === state.selectedPet.id));
+      button.addEventListener("click", () => selectPet(pet.id));
+      petPicker.appendChild(button);
+    });
 }
 
 function normalizeBubbleLines(lines) {
@@ -367,7 +511,7 @@ function openBubbleEditor() {
   state.bubbleDraftLines = [...getCurrentLines()];
   state.selectedBubbleLineIndex = 0;
   state.bubbleLineEditMode = null;
-  if (window.desktopPetShell) {
+  if (HAS_DESKTOP_SHELL) {
     window.desktopPetShell.setBubbleEditorOpen(true);
   }
   renderBubbleEditor();
@@ -377,7 +521,7 @@ function openBubbleEditor() {
 function closeBubbleEditor() {
   state.bubbleEditorOpen = false;
   state.bubbleLineEditMode = null;
-  if (window.desktopPetShell) {
+  if (HAS_DESKTOP_SHELL) {
     window.desktopPetShell.setBubbleEditorOpen(false);
   }
   renderShellControls();
@@ -436,19 +580,21 @@ function renderActionButtons() {
 
 function setCompanionMode(enabled) {
   state.companionMode = Boolean(enabled);
-  window.localStorage.setItem("desktopPetCompanionMode", String(state.companionMode));
   if (state.companionMode) {
     state.controlsOpen = false;
     state.controlsHoverOpen = false;
+    if (state.nameEditorOpen) {
+      state.nameEditorOpen = false;
+    }
     if (state.bubbleEditorOpen) {
       state.bubbleEditorOpen = false;
       state.bubbleLineEditMode = null;
-      if (window.desktopPetShell) {
+      if (HAS_DESKTOP_SHELL) {
         window.desktopPetShell.setBubbleEditorOpen(false);
       }
     }
   }
-  if (window.desktopPetShell) {
+  if (HAS_DESKTOP_SHELL) {
     window.desktopPetShell.setCompanionMode(state.companionMode);
   }
   renderShellControls();
@@ -470,6 +616,7 @@ function ensureBubbleContent() {
 
 function renderShellControls() {
   document.body.classList.toggle("bubble-editor-open", state.bubbleEditorOpen);
+  document.body.classList.toggle("name-editor-open", state.nameEditorOpen);
   document.body.classList.toggle("bubbles-off", !state.shellSettings.bubbleEnabled);
   document.body.classList.toggle("companion-mode", state.companionMode);
   document.body.classList.toggle("controls-visible", !state.companionMode && (state.controlsOpen || state.controlsHoverOpen));
@@ -479,6 +626,7 @@ function renderShellControls() {
   companionButton.title = state.companionMode ? "Exit Companion Mode by double-clicking pet" : "Companion Mode";
   companionButton.setAttribute("aria-label", companionButton.title);
   bubbleEditorModal.setAttribute("aria-hidden", String(!state.bubbleEditorOpen));
+  nameEditorModal.setAttribute("aria-hidden", String(!state.nameEditorOpen));
   ensureBubbleContent();
 }
 
@@ -487,14 +635,33 @@ function render() {
   document.documentElement.style.setProperty("--pet-primary", pet.theme.primary);
   document.documentElement.style.setProperty("--pet-secondary", pet.theme.secondary);
   document.documentElement.style.setProperty("--pet-accent", pet.theme.accent);
-  petTitle.textContent = pet.name;
+  setPetTitleText(getPetDisplayName(pet));
   setBubbleText(state.shellSettings.bubbleEnabled ? getCurrentLines()[state.bubbleIndex] : "");
   renderBubbleEditor();
   renderActionButtons();
+  renderPetPicker();
   renderShellControls();
 }
 
-petButton.addEventListener("click", () => {
+petButton.addEventListener("pointermove", (event) => {
+  const transparent = !isPetBodyPointerEvent(event);
+  petButton.classList.toggle("hit-transparent", transparent);
+  setPetInputTransparent(transparent);
+});
+
+petButton.addEventListener("pointerleave", () => {
+  petButton.classList.remove("hit-transparent");
+  setPetInputTransparent(false);
+});
+
+petButton.addEventListener("click", (event) => {
+  if (!isPetBodyPointerEvent(event)) {
+    setPetInputTransparent(true);
+    event.preventDefault();
+    event.stopPropagation();
+    return;
+  }
+  setPetInputTransparent(false);
   if (Date.now() < suppressPetClickUntil) return;
   if (state.companionMode) return;
   window.clearTimeout(controlsHoverTimer);
@@ -516,8 +683,9 @@ talkButton.addEventListener("click", () => {
   activateAction("waving", { quiet: true });
 });
 
-nextPetButton.addEventListener("click", () => {
-  selectNextPet();
+closePetButton.addEventListener("click", async () => {
+  if (!window.desktopPetShell) return;
+  await window.desktopPetShell.closeCurrentPet();
 });
 
 idleButton.addEventListener("click", () => {
@@ -527,6 +695,38 @@ idleButton.addEventListener("click", () => {
 
 scaleButton.addEventListener("click", () => {
   cyclePetScale();
+});
+
+renamePetButton.addEventListener("click", () => {
+  openPetNameEditor();
+});
+
+savePetNameButton.addEventListener("click", () => {
+  savePetNameFromEditor();
+});
+
+resetPetNameButton.addEventListener("click", () => {
+  petNameInput.value = "";
+  savePetNameFromEditor();
+});
+
+cancelPetNameButton.addEventListener("click", () => {
+  closePetNameEditor();
+});
+
+nameEditorBackdrop.addEventListener("click", () => {
+  closePetNameEditor();
+});
+
+petNameInput.addEventListener("keydown", (event) => {
+  if (event.key === "Enter") {
+    event.preventDefault();
+    savePetNameFromEditor();
+  }
+  if (event.key === "Escape") {
+    event.preventDefault();
+    closePetNameEditor();
+  }
 });
 
 editBubbleButton.addEventListener("click", async () => {
@@ -636,11 +836,27 @@ bubbleEditorBackdrop.addEventListener("click", () => {
 });
 
 function beginPetDrag(event) {
-  if (!window.desktopPetShell || event.button !== 0) return;
-  dragState = { x: event.screenX, y: event.screenY, pointerId: event.pointerId, moved: false };
+  if (event.button !== undefined && event.button !== 0) return;
+  if (!isPetBodyPointerEvent(event)) {
+    setPetInputTransparent(true);
+    return;
+  }
+  setPetInputTransparent(false);
+
+  dragState = {
+    x: event.screenX,
+    y: event.screenY,
+    pointerId: event.pointerId,
+    moved: false,
+    dragAction: null,
+    localStartX: ipadDragOffset.x,
+    localStartY: ipadDragOffset.y
+  };
   petCluster.setPointerCapture(event.pointerId);
   document.body.classList.add("dragging-pet");
-  window.desktopPetShell.startWindowDrag();
+  if (HAS_DESKTOP_SHELL) {
+    window.desktopPetShell.startWindowDrag();
+  }
 }
 
 function updatePetDrag(event) {
@@ -650,11 +866,28 @@ function updatePetDrag(event) {
   if (Math.abs(deltaX) + Math.abs(deltaY) > 3) {
     dragState.moved = true;
   }
+  if (Math.abs(deltaX) > 2) {
+    const dragAction = deltaX < 0 ? "running-left" : "running-right";
+    if (dragState.dragAction !== dragAction) {
+      dragState.dragAction = dragAction;
+      setAction(dragAction);
+    }
+  }
+  if (IS_IPAD_MODE && dragState.moved) {
+    const stageRect = petRoom.getBoundingClientRect();
+    const petRect = petCluster.getBoundingClientRect();
+    const maxX = Math.max(0, (stageRect.width - petRect.width) / 2 - 12);
+    const maxY = Math.max(0, (stageRect.height - petRect.height) / 2 - 96);
+    ipadDragOffset.x = Math.max(-maxX, Math.min(maxX, dragState.localStartX + deltaX));
+    ipadDragOffset.y = Math.max(-maxY, Math.min(maxY, dragState.localStartY + deltaY));
+    petCluster.style.setProperty("--pet-offset-x", `${Math.round(ipadDragOffset.x)}px`);
+    petCluster.style.setProperty("--pet-offset-y", `${Math.round(ipadDragOffset.y)}px`);
+  }
 }
 
 function endPetDrag(event) {
   if (!dragState) return;
-  if (window.desktopPetShell) {
+  if (HAS_DESKTOP_SHELL) {
     window.desktopPetShell.stopWindowDrag();
   }
   if (event?.pointerId !== undefined) {
@@ -668,6 +901,7 @@ function endPetDrag(event) {
     suppressPetClickUntil = Date.now() + 180;
   }
   dragState = null;
+  setAction(DEFAULT_ACTION);
   document.body.classList.remove("dragging-pet");
 }
 
@@ -717,7 +951,7 @@ petCluster.addEventListener("dblclick", (event) => {
 });
 
 document.addEventListener("click", (event) => {
-  const clickedInsideControls = event.target.closest(".action-bar, .bubble-editor-dialog");
+  const clickedInsideControls = event.target.closest(".action-bar, .bubble-editor-dialog, .name-editor-dialog");
   const clickedPet = event.target.closest("#petButton");
   if (clickedPet) {
     return;
@@ -730,6 +964,9 @@ document.addEventListener("click", (event) => {
 });
 
 window.addEventListener("keydown", (event) => {
+  if (event.key === "Escape" && state.nameEditorOpen) {
+    closePetNameEditor();
+  }
   if (event.key === "Escape" && state.bubbleEditorOpen) {
     closeBubbleEditor();
   }
@@ -739,8 +976,7 @@ window.addEventListener("keydown", (event) => {
   }
 });
 
-if (window.desktopPetShell) {
-  window.desktopPetShell.setCompanionMode(state.companionMode);
+if (HAS_DESKTOP_SHELL) {
   window.desktopPetShell.setBubbleEditorOpen(false);
 
   bubbleToggleButton.addEventListener("click", async () => {
@@ -771,22 +1007,28 @@ if (window.desktopPetShell) {
 
   window.desktopPetShell.getSettings().then((settings) => {
     state.shellSettings = { ...state.shellSettings, ...settings };
-    if (!state.shellSettings.bubbleEnabled) {
-      state.shellSettings.bubbleEnabled = true;
-      window.desktopPetShell.setBubbleEnabled(true);
+    state.companionMode = Boolean(settings.companionMode);
+    if (typeof settings.petScale === "number") {
+      setPetScale(settings.petScale, { syncShell: false });
     }
-    selectPet(state.shellSettings.selectedPetId || pets[0].id, { syncShell: false });
+    selectPet(state.shellSettings.petId || pets[0].id);
     renderShellControls();
     scheduleBubbleRotation();
   });
 
   window.desktopPetShell.onSettings((settings) => {
     state.shellSettings = { ...state.shellSettings, ...settings };
+    if (typeof settings.companionMode === "boolean") {
+      state.companionMode = settings.companionMode;
+    }
+    if (typeof settings.petScale === "number" && Math.abs(settings.petScale - state.petScale) > 0.001) {
+      setPetScale(settings.petScale, { syncShell: false });
+    }
+    if (settings.petId && settings.petId !== state.selectedPet.id) {
+      selectPet(settings.petId);
+      return;
+    }
     renderShellControls();
-  });
-
-  window.desktopPetShell.onPetSelected(({ petId }) => {
-    selectPet(petId, { syncShell: false });
   });
 
   window.desktopPetShell.onBubblesEnabled((enabled) => {
@@ -794,10 +1036,25 @@ if (window.desktopPetShell) {
     renderShellControls();
     scheduleBubbleRotation();
   });
+} else {
+  bubbleToggleButton.addEventListener("click", () => {
+    state.shellSettings = {
+      ...state.shellSettings,
+      bubbleEnabled: !state.shellSettings.bubbleEnabled
+    };
+    renderShellControls();
+    scheduleBubbleRotation();
+  });
 }
 
 render();
-setPetScale(state.petScale);
+setPetScale(state.petScale, { syncShell: false });
 setAction(DEFAULT_ACTION);
 scheduleBubbleRotation();
 window.requestAnimationFrame(animatePet);
+
+if ("serviceWorker" in navigator && IS_IPAD_MODE) {
+  window.addEventListener("load", () => {
+    navigator.serviceWorker.register("./sw.js").catch(() => {});
+  });
+}

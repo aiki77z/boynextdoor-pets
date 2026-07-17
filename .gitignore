@@ -3,10 +3,20 @@ references/
 dist/
 
 # Large generated pet/image artifacts
-hatch-runs/
+hatch-runs/*
+!hatch-runs/
+!hatch-runs/*/
+hatch-runs/*/*
+!hatch-runs/*/final/
+hatch-runs/*/final/*
+!hatch-runs/*/final/spritesheet.webp
 
 # Local build resources and packaging leftovers
-build/
+build/*
+!build/
+!build/icon.ico
+!build/icon.icns
+!build/icon.png
 *.blockmap
 builder-debug.yml
 builder-effective-config.yaml

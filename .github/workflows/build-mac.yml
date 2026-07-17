@@ -1,0 +1,100 @@
+name: build-mac
+
+on:
+  workflow_dispatch:
+  push:
+    tags:
+      - "v*.*.*"
+      - "*.*.*"
+
+jobs:
+  mac:
+    runs-on: macos-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        arch:
+          - arm64
+          - x64
+    env:
+      # Opt-in early so JS-based actions don't run on deprecated Node 20.
+      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Setup Node
+        uses: actions/setup-node@v6
+        with:
+          node-version: "22"
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build mac artifacts (dmg + zip)
+        run: npm run dist:mac -- --${{ matrix.arch }} --publish never
+
+      - name: Normalize artifact names
+        shell: bash
+        run: |
+          set -euo pipefail
+          ARCH="${{ matrix.arch }}"
+
+          pick_file() {
+            local arch="$1"; shift
+            local -a files=("$@")
+            if [ "${#files[@]}" -eq 0 ]; then
+              return 1
+            fi
+            for f in "${files[@]}"; do
+              if [[ "$f" == *"$arch"* ]]; then
+                printf '%s\n' "$f"
+                return 0
+              fi
+            done
+            printf '%s\n' "${files[0]}"
+          }
+
+          # DMG: electron-builder naming differs by arch/version; normalize to include "-$ARCH".
+          dmgs=()
+          while IFS= read -r dmg; do
+            dmgs+=("$dmg")
+          done < <(find dist -maxdepth 1 -type f -name '*.dmg' ! -name '*.dmg.blockmap' -print 2>/dev/null | sort || true)
+          if [ "${#dmgs[@]}" -gt 0 ]; then
+            src_dmg="$(pick_file "$ARCH" "${dmgs[@]}")"
+            if [[ "$src_dmg" != *-"$ARCH".dmg ]]; then
+              mv "$src_dmg" "${src_dmg%.dmg}-$ARCH.dmg"
+            fi
+          fi
+
+          # ZIP: normalize to include "-$ARCH" before "-mac.zip".
+          zips=()
+          while IFS= read -r zip; do
+            zips+=("$zip")
+          done < <(find dist -maxdepth 1 -type f -name '*-mac.zip' ! -name '*.zip.blockmap' -print 2>/dev/null | sort || true)
+          if [ "${#zips[@]}" -gt 0 ]; then
+            src_zip="$(pick_file "$ARCH" "${zips[@]}")"
+            if [[ "$src_zip" != *-"$ARCH"-mac.zip ]]; then
+              mv "$src_zip" "${src_zip%-mac.zip}-$ARCH-mac.zip"
+            fi
+          fi
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: BOYNEXTDOOR-Pets-mac-${{ matrix.arch }}
+          path: |
+            dist/*-${{ matrix.arch }}.dmg
+            dist/*-${{ matrix.arch }}-mac.zip
+
+      - name: Publish to GitHub Release
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v2
+        with:
+          generate_release_notes: true
+          files: |
+            dist/*-${{ matrix.arch }}.dmg
+            dist/*-${{ matrix.arch }}-mac.zip
