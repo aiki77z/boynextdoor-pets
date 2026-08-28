@@ -1,0 +1,18 @@
+{
+  "name": "BOYNEXTDOOR Pets",
+  "short_name": "BND Pets",
+  "description": "BOYNEXTDOOR pet companion for desktop and iPad.",
+  "start_url": "./ipad.html",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#eaf7ff",
+  "theme_color": "#eaf7ff",
+  "icons": [
+    {
+      "src": "./build/icon.ico",
+      "sizes": "64x64 128x128 256x256",
+      "type": "image/x-icon"
+    }
+  ]
+}

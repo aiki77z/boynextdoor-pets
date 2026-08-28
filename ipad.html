@@ -1,0 +1,80 @@
+<!doctype html>
+<html lang="zh-CN" data-app-mode="ipad">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+    <title>BOYNEXTDOOR Pets Memo</title>
+    <meta name="theme-color" content="#f4efe7">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-title" content="BOYNEXTDOOR Pets">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <link rel="manifest" href="./manifest.webmanifest">
+    <link rel="apple-touch-icon" href="./build/icon.ico">
+    <link rel="stylesheet" href="./ipad-memo.css?v=20260828-bnd">
+  </head>
+  <body>
+    <main class="memo-app" aria-label="BOYNEXTDOOR Pets memo widget editor">
+      <section class="memo-widget" id="memoWidget" aria-label="Today memo">
+        <header class="memo-header memo-header-minimal">
+          <button class="desk-toggle is-on" id="deskToggle" type="button" aria-pressed="true">
+            <span></span>
+            <strong id="deskToggleText">Desk ON</strong>
+          </button>
+        </header>
+
+        <button class="memo-list" id="memoListButton" type="button" aria-label="Edit memo list"></button>
+
+        <section class="pet-corner" aria-label="Active pet">
+          <button class="pet-button" id="petButton" type="button" aria-label="Play a random pet action">
+            <canvas class="pet-canvas" id="petCanvas" width="384" height="416"></canvas>
+          </button>
+          <div class="action-chip" id="actionChip">Idle</div>
+        </section>
+
+        <nav class="pet-switcher" aria-label="Switch pet">
+          <button class="switch-button" id="prevPetButton" type="button" aria-label="Previous pet">&lt;</button>
+          <button class="active-pet-pill" id="editPetButton" type="button" aria-label="Edit pet name and memos">
+            <canvas class="pet-thumb" id="petThumbCanvas" width="96" height="104"></canvas>
+            <strong id="activePetName">Catbbi</strong>
+            <span aria-hidden="true">paw</span>
+          </button>
+          <div class="pet-dots" id="petDots" aria-hidden="true"></div>
+          <button class="switch-button" id="nextPetButton" type="button" aria-label="Next pet">&gt;</button>
+        </nav>
+      </section>
+    </main>
+
+    <div class="editor-modal" id="editorModal" aria-hidden="true">
+      <button class="editor-backdrop" id="editorBackdrop" type="button" aria-label="Close editor"></button>
+      <section class="editor-dialog" aria-label="Edit pet memo">
+        <header class="editor-header">
+          <div>
+            <p>Current Pet</p>
+            <h2 id="editorTitle">Cherry</h2>
+          </div>
+          <button class="editor-close" id="editorCloseButton" type="button" aria-label="Close">x</button>
+        </header>
+
+        <label class="field">
+          <span>Pet name</span>
+          <input id="petNameInput" type="text" maxlength="16" autocomplete="off">
+        </label>
+
+        <div class="memo-editor-head">
+          <span>Memo entries</span>
+          <button class="small-button" id="addMemoButton" type="button">Add</button>
+        </div>
+        <div class="memo-editor-list" id="memoEditorList"></div>
+
+        <footer class="editor-actions">
+          <button class="plain-button" id="resetMemoButton" type="button">Restore</button>
+          <button class="plain-button" id="cancelEditorButton" type="button">Cancel</button>
+          <button class="save-button" id="saveEditorButton" type="button">Save</button>
+        </footer>
+      </section>
+    </div>
+
+    <script src="./pet-data.js?v=20260828-bnd"></script>
+    <script src="./ipad-memo.js?v=20260828-bnd"></script>
+  </body>
+</html>

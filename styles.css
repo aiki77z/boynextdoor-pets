@@ -10,7 +10,7 @@
   --pet-accent: #9fc8d8;
   --pet-scale: 1;
   --pet-aspect-ratio: 0.9230769231;
-  --pet-base-width: 200px;
+  --pet-base-width: 184px;
   --pet-hit-alpha: 18;
 }
 
@@ -47,8 +47,8 @@ button {
 .app-shell {
   width: 100vw;
   height: 100vh;
-  padding: 8px;
-  padding: max(8px, env(safe-area-inset-top)) max(8px, env(safe-area-inset-right)) max(8px, env(safe-area-inset-bottom)) max(8px, env(safe-area-inset-left));
+  padding: 4px;
+  padding: max(4px, env(safe-area-inset-top)) max(4px, env(safe-area-inset-right)) max(4px, env(safe-area-inset-bottom)) max(4px, env(safe-area-inset-left));
 }
 
 .pet-stage {
@@ -147,25 +147,25 @@ html[data-app-mode="ipad"] .pet-stage {
 .bubble {
   position: absolute;
   z-index: 40;
-  bottom: calc(50% + ((var(--pet-base-width) * var(--pet-scale)) / var(--pet-aspect-ratio) / 2) + 6px);
+  bottom: calc(50% + ((var(--pet-base-width) * var(--pet-scale)) / var(--pet-aspect-ratio) / 2) + 1px);
   left: 50%;
-  width: min(var(--bubble-width, 140px), calc(100vw - 18px));
-  min-width: 96px;
-  max-width: min(280px, calc(100vw - 18px));
-  min-height: 36px;
-  max-height: calc(2.56em + 16px);
+  width: min(var(--bubble-width, 118px), calc(100vw - 12px));
+  min-width: 72px;
+  max-width: min(210px, calc(100vw - 12px));
+  min-height: 24px;
+  max-height: calc(2.32em + 10px);
   transform: translateX(-50%);
   display: -webkit-box;
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 2;
-  padding: 8px 12px;
-  border-radius: 18px;
+  padding: 5px 8px;
+  border-radius: 12px;
   background: rgba(255, 255, 255, 0.92);
   border: 1px solid rgba(87, 71, 53, 0.06);
   text-align: center;
-  font-size: clamp(10px, calc(12px * var(--pet-scale)), 14px);
+  font-size: clamp(8px, calc(10px * var(--pet-scale)), 11px);
   font-weight: 700;
-  line-height: 1.28;
+  line-height: 1.16;
   overflow-wrap: anywhere;
   overflow: hidden;
   pointer-events: none;
@@ -257,7 +257,7 @@ body.companion-mode .pet-cluster:hover .pet-nameplate {
   display: grid;
   grid-template-columns: repeat(5, minmax(0, 1fr));
   gap: 6px;
-  width: 188px;
+  width: 224px;
   padding: 6px;
   border-radius: 18px;
   background: rgba(255, 255, 255, 0.82);
@@ -266,6 +266,10 @@ body.companion-mode .pet-cluster:hover .pet-nameplate {
   transform: translateX(-50%) translateY(10px);
   transition: opacity 160ms ease, transform 160ms ease;
   -webkit-app-region: no-drag;
+}
+
+html:not([data-app-mode="ipad"]) .action-bar {
+  display: none;
 }
 
 body.controls-visible .action-bar {

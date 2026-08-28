@@ -1,4 +1,5 @@
 ﻿const pets = window.BND_PETS;
+pets.sort((left, right) => left.id.localeCompare(right.id));
 const APP_MODE = document.documentElement.dataset.appMode || "desktop";
 const IS_IPAD_MODE = APP_MODE === "ipad";
 const HAS_DESKTOP_SHELL = Boolean(window.desktopPetShell);
@@ -11,36 +12,41 @@ const ATLAS = {
 };
 
 const ACTIONS = [
-  { id: "idle", label: "Idle", icon: "o", row: 0, frames: 6, fps: 4 },
-  { id: "running-right", label: "Right", icon: ">", row: 1, frames: 8, fps: 10 },
-  { id: "running-left", label: "Left", icon: "<", row: 2, frames: 8, fps: 10 },
-  { id: "waving", label: "Wave", icon: "~", row: 3, frames: 4, fps: 6 },
-  { id: "jumping", label: "Jump", icon: "^", row: 4, frames: 5, fps: 7 },
-  { id: "failed", label: "Fail", icon: "!", row: 5, frames: 8, fps: 8 },
-  { id: "waiting", label: "Wait", icon: "z", row: 6, frames: 6, fps: 4 },
-  { id: "running", label: "Busy", icon: ">>", row: 7, frames: 6, fps: 8 },
-  { id: "review", label: "Review", icon: "?", row: 8, frames: 6, fps: 5 }
+  { id: "idle", label: "待机", icon: "o", row: 0, frames: 6, fps: 4 },
+  { id: "running-right", label: "向右", icon: ">", row: 1, frames: 8, fps: 10 },
+  { id: "running-left", label: "向左", icon: "<", row: 2, frames: 8, fps: 10 },
+  { id: "waving", label: "挥手", icon: "~", row: 3, frames: 4, fps: 6 },
+  { id: "jumping", label: "跳跃", icon: "^", row: 4, frames: 5, fps: 7 },
+  { id: "failed", label: "失败", icon: "!", row: 5, frames: 8, fps: 8 },
+  { id: "waiting", label: "等待", icon: "z", row: 6, frames: 6, fps: 4 },
+  { id: "running", label: "忙碌", icon: ">>", row: 7, frames: 6, fps: 8 },
+  { id: "review", label: "检查", icon: "?", row: 8, frames: 6, fps: 5 }
 ];
 
-const PET_SPRITESHEETS = {
-  catbbi: "./hatch-runs/catbbi/final/spritesheet.webp?v=20260717-1",
-  dalring: "./hatch-runs/dalring/final/spritesheet.webp?v=20260717-1",
-  myngmyng: "./hatch-runs/myngmyng/final/spritesheet.webp?v=20260717-1",
-  hantatpung: "./hatch-runs/hantatpung/final/spritesheet.webp?v=20260717-1",
-  "312": "./hatch-runs/312/final/spritesheet.webp?v=20260717-1",
-  woonbaby: "./hatch-runs/woonbaby/final/spritesheet.webp?v=20260717-1"
-};
+const PET_SPRITESHEETS = Object.fromEntries(
+  pets.map((pet) => [pet.id, pet.spritePath || `./${pet.id}/final/spritesheet.webp`])
+);
+const SPRITE_ALPHA_THRESHOLD = 18;
+const NORMALIZED_DRAW_RATIO = { width: 0.82, height: 0.84 };
 
-const AUTO_ACTIONS = [
-  { id: "waving", minDelayMs: 4000, maxDelayMs: 8500, durationMs: 1800 },
-  { id: "jumping", minDelayMs: 5000, maxDelayMs: 9000, durationMs: 1600 },
-  { id: "waiting", minDelayMs: 7000, maxDelayMs: 12000, durationMs: 2600 },
-  { id: "review", minDelayMs: 9000, maxDelayMs: 14000, durationMs: 2400 },
-  { id: "running-right", minDelayMs: 6000, maxDelayMs: 11000, durationMs: 1500 },
-  { id: "running-left", minDelayMs: 6000, maxDelayMs: 11000, durationMs: 1500 }
+const NORMAL_ACTION_CYCLE = [
+  { id: "waving", durationMs: 1800 },
+  { id: "jumping", durationMs: 1600 },
+  { id: "failed", durationMs: 1900 },
+  { id: "waiting", durationMs: 2600 },
+  { id: "running", durationMs: 1800 },
+  { id: "review", durationMs: 2400 }
 ];
+const NORMAL_ACTION_IDLE_GAP_MS = 1200;
 
 const ACTION_MAP = Object.fromEntries(ACTIONS.map((action) => [action.id, action]));
+const ACTION_PREVIEW_DURATIONS = {
+  waving: 1800,
+  jumping: 1600,
+  failed: 1900,
+  waiting: 2600,
+  review: 2400
+};
 
 const state = {
   selectedPet: DEFAULT_PET,
@@ -53,6 +59,7 @@ const state = {
   controlsOpen: false,
   controlsHoverOpen: false,
   companionMode: false,
+  patrolMode: false,
   bubbleEditorOpen: false,
   nameEditorOpen: false,
   bubbleDraftLines: [],
@@ -64,7 +71,8 @@ const state = {
     bubbleEnabled: true,
     petId: DEFAULT_PET.id,
     activePetIds: [DEFAULT_PET.id],
-    hideDockIcon: false
+    hideDockIcon: false,
+    patrolMode: false
   },
   petScale: 0.6
 };
@@ -87,6 +95,7 @@ const quitButton = document.querySelector("#quitButton");
 const talkButton = document.querySelector("#talkButton");
 const closePetButton = document.querySelector("#closePetButton");
 const bubbleToggleButton = document.querySelector("#bubbleToggleButton");
+const settingsMenuButton = document.querySelector("#settingsMenuButton");
 const companionButton = document.querySelector("#companionButton");
 const idleButton = document.querySelector("#idleButton");
 const scaleButton = document.querySelector("#scaleButton");
@@ -115,11 +124,11 @@ const cancelBubbleEditorButton = document.querySelector("#cancelBubbleEditorButt
 petCanvas.width = ATLAS.cellWidth * 2;
 petCanvas.height = ATLAS.cellHeight * 2;
 
-const imageCache = new Map();
+const petAssetCache = new Map();
 const BUBBLE_TEXT_STORAGE_KEY = "desktopPetCustomBubbleText";
 const PET_NAME_STORAGE_KEY = "desktopPetCustomNames";
 const PET_NAME_MAX_LENGTH = 12;
-const PET_SCALE_STEPS = [0.4, 0.5, 0.6, 0.75, 0.9];
+const PET_SCALE_STEPS = [0.4, 0.5, 0.6, 0.7];
 const DEFAULT_ACTION = "idle";
 
 let dragState = null;
@@ -127,6 +136,7 @@ let suppressPetClickUntil = 0;
 let controlsHoverTimer = null;
 let currentFrameBounds = { x: 0, y: 0, width: petCanvas.width, height: petCanvas.height };
 let petInputTransparent = false;
+let normalActionCycleIndex = 0;
 
 function readBubbleOverrides() {
   try {
@@ -181,7 +191,7 @@ function getBubbleLinesForPet(pet) {
 }
 
 function setPetScale(nextScale, options = {}) {
-  state.petScale = Math.min(1, Math.max(0.35, nextScale));
+  state.petScale = Math.min(0.7, Math.max(0.35, nextScale));
   document.documentElement.style.setProperty("--pet-scale", String(state.petScale));
   if (options.syncShell !== false && HAS_DESKTOP_SHELL) {
     window.desktopPetShell.setPetScale(state.petScale);
@@ -191,8 +201,8 @@ function setPetScale(nextScale, options = {}) {
 
 function updateScaleButtonLabel() {
   const currentPercent = Math.round(state.petScale * 100);
-  scaleButton.title = `Scale Pet (${currentPercent}%)`;
-  scaleButton.setAttribute("aria-label", `Scale Pet (${currentPercent}%)`);
+  scaleButton.title = `缩放宠物 (${currentPercent}%)`;
+  scaleButton.setAttribute("aria-label", `缩放宠物 (${currentPercent}%)`);
 }
 
 function cyclePetScale() {
@@ -238,18 +248,87 @@ function randomBetween(min, max) {
   return Math.round(min + Math.random() * (max - min));
 }
 
-function loadSpritesheet(petId) {
-  if (imageCache.has(petId)) return imageCache.get(petId);
+function findOpaqueBounds(imageData, width, height) {
+  let minX = width;
+  let minY = height;
+  let maxX = -1;
+  let maxY = -1;
+
+  for (let y = 0; y < height; y += 1) {
+    for (let x = 0; x < width; x += 1) {
+      const alpha = imageData[(y * width + x) * 4 + 3];
+      if (alpha < SPRITE_ALPHA_THRESHOLD) continue;
+      if (x < minX) minX = x;
+      if (y < minY) minY = y;
+      if (x > maxX) maxX = x;
+      if (y > maxY) maxY = y;
+    }
+  }
+
+  if (maxX < minX || maxY < minY) {
+    return null;
+  }
+
+  return {
+    x: minX,
+    y: minY,
+    width: maxX - minX + 1,
+    height: maxY - minY + 1
+  };
+}
+
+function computeSpriteSourceBounds(image) {
+  const probeCanvas = document.createElement("canvas");
+  probeCanvas.width = image.width;
+  probeCanvas.height = image.height;
+  const probeCtx = probeCanvas.getContext("2d", { willReadFrequently: true });
+  probeCtx.drawImage(image, 0, 0);
+
+  let union = null;
+  for (const action of ACTIONS) {
+    for (let frame = 0; frame < action.frames; frame += 1) {
+      const data = probeCtx.getImageData(
+        frame * ATLAS.cellWidth,
+        action.row * ATLAS.cellHeight,
+        ATLAS.cellWidth,
+        ATLAS.cellHeight
+      ).data;
+      const bounds = findOpaqueBounds(data, ATLAS.cellWidth, ATLAS.cellHeight);
+      if (!bounds) continue;
+
+      if (!union) {
+        union = bounds;
+        continue;
+      }
+
+      const nextMinX = Math.min(union.x, bounds.x);
+      const nextMinY = Math.min(union.y, bounds.y);
+      const nextMaxX = Math.max(union.x + union.width, bounds.x + bounds.width);
+      const nextMaxY = Math.max(union.y + union.height, bounds.y + bounds.height);
+      union = {
+        x: nextMinX,
+        y: nextMinY,
+        width: nextMaxX - nextMinX,
+        height: nextMaxY - nextMinY
+      };
+    }
+  }
+
+  return union || { x: 0, y: 0, width: ATLAS.cellWidth, height: ATLAS.cellHeight };
+}
+
+function loadPetAsset(petId) {
+  if (petAssetCache.has(petId)) return petAssetCache.get(petId);
 
   const src = PET_SPRITESHEETS[petId];
   const promise = new Promise((resolve, reject) => {
     const image = new Image();
-    image.addEventListener("load", () => resolve(image));
-    image.addEventListener("error", () => reject(new Error(`Failed to load ${src}`)));
+    image.addEventListener("load", () => resolve({ image, bounds: computeSpriteSourceBounds(image) }));
+    image.addEventListener("error", () => reject(new Error(`加载失败：${src}`)));
     image.src = src;
   });
 
-  imageCache.set(petId, promise);
+  petAssetCache.set(petId, promise);
   return promise;
 }
 
@@ -272,7 +351,7 @@ function jumpOffsetForFrame(frame, frameCount, scale) {
 }
 
 function drawingScaleForAction(maxScale) {
-  const baseScale = maxScale >= 1 ? Math.floor(maxScale) || 1 : maxScale;
+  const baseScale = maxScale;
   if (state.action !== "jumping") return baseScale;
   return Math.min(baseScale, maxScale * 0.81);
 }
@@ -287,25 +366,29 @@ function drawPlaceholder(message) {
   petCtx.fillText(message, petCanvas.width / 2, petCanvas.height / 2);
 }
 
-function drawFrame(now, image) {
+function drawFrame(now, petAsset) {
+  const { image, bounds } = petAsset;
   const config = getActionConfig(state.action);
   const frame = frameIndexFor(now);
-  const sx = frame * ATLAS.cellWidth;
-  const sy = config.row * ATLAS.cellHeight;
+  const sx = frame * ATLAS.cellWidth + bounds.x;
+  const sy = config.row * ATLAS.cellHeight + bounds.y;
+  const sourceWidth = Math.max(1, bounds.width);
+  const sourceHeight = Math.max(1, bounds.height);
   const maxScale = Math.min(
-    petCanvas.width / ATLAS.cellWidth,
-    petCanvas.height / ATLAS.cellHeight
+    (petCanvas.width * NORMALIZED_DRAW_RATIO.width) / sourceWidth,
+    (petCanvas.height * NORMALIZED_DRAW_RATIO.height) / sourceHeight
   );
   const scale = drawingScaleForAction(maxScale);
-  const dw = Math.round(ATLAS.cellWidth * scale);
-  const dh = Math.round(ATLAS.cellHeight * scale);
+  const dw = Math.round(sourceWidth * scale);
+  const dh = Math.round(sourceHeight * scale);
   const dx = Math.round((petCanvas.width - dw) / 2);
-  const dy = Math.round((petCanvas.height - dh) / 2) + jumpOffsetForFrame(frame, config.frames, scale);
+  const motionScale = Math.min(dw / ATLAS.cellWidth, dh / ATLAS.cellHeight);
+  const dy = Math.round((petCanvas.height - dh) / 2) + jumpOffsetForFrame(frame, config.frames, motionScale);
 
   petCtx.clearRect(0, 0, petCanvas.width, petCanvas.height);
   petCtx.imageSmoothingEnabled = true;
   petCtx.imageSmoothingQuality = "high";
-  petCtx.drawImage(image, sx, sy, ATLAS.cellWidth, ATLAS.cellHeight, dx, dy, dw, dh);
+  petCtx.drawImage(image, sx, sy, sourceWidth, sourceHeight, dx, dy, dw, dh);
   currentFrameBounds = { x: dx, y: dy, width: dw, height: dh };
 }
 
@@ -351,9 +434,9 @@ function setPetInputTransparent(transparent) {
 }
 
 function animatePet(now) {
-  loadSpritesheet(state.selectedPet.id)
-    .then((image) => drawFrame(now, image))
-    .catch(() => drawPlaceholder("pet unavailable"));
+  loadPetAsset(state.selectedPet.id)
+    .then((petAsset) => drawFrame(now, petAsset))
+    .catch(() => drawPlaceholder("宠物暂不可用"));
 
   window.requestAnimationFrame(animatePet);
 }
@@ -367,7 +450,7 @@ function getCurrentLines() {
 
 function calculateBubbleWidth(text) {
   const length = Array.from(String(text || "").trim()).length;
-  return Math.min(280, Math.max(96, 54 + length * 12));
+  return Math.min(210, Math.max(72, 42 + length * 8));
 }
 
 function setBubbleText(text) {
@@ -460,7 +543,7 @@ function renderBubbleEditor() {
   if (!state.bubbleDraftLines.length) {
     const empty = document.createElement("p");
     empty.className = "bubble-line-empty";
-    empty.textContent = "No lines yet. Click New to add one.";
+    empty.textContent = "还没有气泡文字。点击新增来添加一句。";
     bubbleLineList.appendChild(empty);
   }
 
@@ -529,11 +612,14 @@ function closeBubbleEditor() {
 
 function scheduleAutoAction() {
   window.clearTimeout(state.autoActionTimer);
-  if (state.action !== DEFAULT_ACTION) return;
-  const pick = AUTO_ACTIONS[Math.floor(Math.random() * AUTO_ACTIONS.length)];
+  if (state.patrolMode || state.action !== DEFAULT_ACTION) return;
+
   state.autoActionTimer = window.setTimeout(() => {
+    if (state.patrolMode || state.action !== DEFAULT_ACTION) return;
+    const pick = NORMAL_ACTION_CYCLE[normalActionCycleIndex % NORMAL_ACTION_CYCLE.length];
+    normalActionCycleIndex += 1;
     previewAction(pick.id, pick.durationMs, { auto: true });
-  }, randomBetween(pick.minDelayMs, pick.maxDelayMs));
+  }, NORMAL_ACTION_IDLE_GAP_MS);
 }
 
 function setAction(action) {
@@ -567,6 +653,25 @@ function activateAction(action, options = {}) {
     speakRandomLine();
   }
   setAction(action);
+}
+
+function runCommandAction(action, options = {}) {
+  if (action === "running-left" || action === "running-right") {
+    state.patrolMode = Boolean(options.patrol);
+    window.clearTimeout(state.autoActionTimer);
+  }
+
+  if (action === DEFAULT_ACTION) {
+    setAction(DEFAULT_ACTION);
+    return;
+  }
+
+  if (options.hold) {
+    activateAction(action, options);
+    return;
+  }
+
+  previewAction(action, ACTION_PREVIEW_DURATIONS[action] || 1800, options);
 }
 
 function renderActionButtons() {
@@ -619,11 +724,12 @@ function renderShellControls() {
   document.body.classList.toggle("name-editor-open", state.nameEditorOpen);
   document.body.classList.toggle("bubbles-off", !state.shellSettings.bubbleEnabled);
   document.body.classList.toggle("companion-mode", state.companionMode);
+  document.body.classList.toggle("patrol-mode", state.patrolMode);
   document.body.classList.toggle("controls-visible", !state.companionMode && (state.controlsOpen || state.controlsHoverOpen));
   pinButton.classList.toggle("active", state.shellSettings.alwaysOnTop);
   bubbleToggleButton.classList.toggle("active", state.shellSettings.bubbleEnabled);
   companionButton.classList.toggle("active", state.companionMode);
-  companionButton.title = state.companionMode ? "Exit Companion Mode by double-clicking pet" : "Companion Mode";
+  companionButton.title = state.companionMode ? "双击宠物退出陪伴模式" : "陪伴模式";
   companionButton.setAttribute("aria-label", companionButton.title);
   bubbleEditorModal.setAttribute("aria-hidden", String(!state.bubbleEditorOpen));
   nameEditorModal.setAttribute("aria-hidden", String(!state.nameEditorOpen));
@@ -665,11 +771,27 @@ petButton.addEventListener("click", (event) => {
   if (Date.now() < suppressPetClickUntil) return;
   if (state.companionMode) return;
   window.clearTimeout(controlsHoverTimer);
-  state.controlsOpen = true;
+  state.controlsOpen = !HAS_DESKTOP_SHELL;
   state.controlsHoverOpen = false;
   renderShellControls();
   cycleBubble(1);
-  activateAction("waving");
+  activateAction("jumping");
+});
+
+petButton.addEventListener("contextmenu", async (event) => {
+  event.preventDefault();
+  event.stopPropagation();
+  if (!isPetBodyPointerEvent(event)) {
+    setPetInputTransparent(true);
+    return;
+  }
+  setPetInputTransparent(false);
+  state.controlsOpen = false;
+  state.controlsHoverOpen = false;
+  renderShellControls();
+  if (HAS_DESKTOP_SHELL && window.desktopPetShell.showControlMenu) {
+    await window.desktopPetShell.showControlMenu();
+  }
 });
 
 actionButtons.forEach((button) => {
@@ -846,6 +968,7 @@ function beginPetDrag(event) {
   dragState = {
     x: event.screenX,
     y: event.screenY,
+    lastX: event.screenX,
     pointerId: event.pointerId,
     moved: false,
     dragAction: null,
@@ -863,16 +986,18 @@ function updatePetDrag(event) {
   if (!dragState) return;
   const deltaX = event.screenX - dragState.x;
   const deltaY = event.screenY - dragState.y;
+  const moveX = event.screenX - dragState.lastX;
   if (Math.abs(deltaX) + Math.abs(deltaY) > 3) {
     dragState.moved = true;
   }
-  if (Math.abs(deltaX) > 2) {
-    const dragAction = deltaX < 0 ? "running-left" : "running-right";
+  if (Math.abs(moveX) > 2) {
+    const dragAction = moveX < 0 ? "running-left" : "running-right";
     if (dragState.dragAction !== dragAction) {
       dragState.dragAction = dragAction;
       setAction(dragAction);
     }
   }
+  dragState.lastX = event.screenX;
   if (IS_IPAD_MODE && dragState.moved) {
     const stageRect = petRoom.getBoundingClientRect();
     const petRect = petCluster.getBoundingClientRect();
@@ -997,6 +1122,12 @@ if (HAS_DESKTOP_SHELL) {
     renderShellControls();
   });
 
+  settingsMenuButton.addEventListener("click", async () => {
+    state.controlsOpen = true;
+    renderShellControls();
+    await window.desktopPetShell.showControlMenu();
+  });
+
   hideButton.addEventListener("click", async () => {
     await window.desktopPetShell.hideWindow();
   });
@@ -1008,6 +1139,10 @@ if (HAS_DESKTOP_SHELL) {
   window.desktopPetShell.getSettings().then((settings) => {
     state.shellSettings = { ...state.shellSettings, ...settings };
     state.companionMode = Boolean(settings.companionMode);
+    state.patrolMode = Boolean(settings.patrolMode);
+    if (state.patrolMode) {
+      window.clearTimeout(state.autoActionTimer);
+    }
     if (typeof settings.petScale === "number") {
       setPetScale(settings.petScale, { syncShell: false });
     }
@@ -1017,9 +1152,18 @@ if (HAS_DESKTOP_SHELL) {
   });
 
   window.desktopPetShell.onSettings((settings) => {
+    const wasPatrolling = state.patrolMode;
     state.shellSettings = { ...state.shellSettings, ...settings };
     if (typeof settings.companionMode === "boolean") {
       state.companionMode = settings.companionMode;
+    }
+    if (typeof settings.patrolMode === "boolean") {
+      state.patrolMode = settings.patrolMode;
+    }
+    if (wasPatrolling && !state.patrolMode && (state.action === "running-left" || state.action === "running-right")) {
+      setAction(DEFAULT_ACTION);
+    } else if (!wasPatrolling && state.patrolMode) {
+      window.clearTimeout(state.autoActionTimer);
     }
     if (typeof settings.petScale === "number" && Math.abs(settings.petScale - state.petScale) > 0.001) {
       setPetScale(settings.petScale, { syncShell: false });
@@ -1035,6 +1179,27 @@ if (HAS_DESKTOP_SHELL) {
     state.shellSettings = { ...state.shellSettings, bubbleEnabled: Boolean(enabled) };
     renderShellControls();
     scheduleBubbleRotation();
+  });
+
+  window.desktopPetShell.onPetCommand((command) => {
+    if (!command || typeof command !== "object") return;
+
+    if (command.type === "action") {
+      runCommandAction(command.action, command);
+    }
+
+    if (command.type === "bubble-next") {
+      cycleBubble(1);
+      runCommandAction("waving", { quiet: true });
+    }
+
+    if (command.type === "open-name-editor") {
+      openPetNameEditor();
+    }
+
+    if (command.type === "open-bubble-editor") {
+      openBubbleEditor();
+    }
   });
 } else {
   bubbleToggleButton.addEventListener("click", () => {

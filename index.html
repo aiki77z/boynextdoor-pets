@@ -1,18 +1,21 @@
-﻿<!doctype html>
+<!doctype html>
 <html lang="zh-CN">
   <head>
     <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
     <title>BOYNEXTDOOR Pets</title>
-    <link rel="stylesheet" href="./styles.css">
+    <meta name="theme-color" content="#eaf7ff">
+    <link rel="manifest" href="./manifest.webmanifest">
+    <link rel="apple-touch-icon" href="./build/icon.ico">
+    <link rel="stylesheet" href="./styles.css?v=20260828-bnd">
   </head>
   <body>
     <main class="app-shell">
-      <section class="pet-stage" aria-label="Pet stage">
+      <section class="pet-stage" aria-label="宠物舞台">
         <div class="pet-room" id="petRoom">
-          <div class="bubble" id="bubbleText">Hello</div>
+          <div class="bubble" id="bubbleText">你好</div>
           <div class="pet-cluster" id="petCluster">
-            <button class="pet-button" id="petButton" type="button" aria-label="Interact with pet">
+            <button class="pet-button" id="petButton" type="button" aria-label="和宠物互动">
               <span class="pet" id="petSprite" aria-hidden="true">
                 <canvas class="pet-canvas" id="petCanvas" width="384" height="416"></canvas>
               </span>
@@ -21,81 +24,82 @@
           </div>
         </div>
 
-        <div class="action-bar" aria-label="Pet actions">
-          <button class="shell-button" id="idleButton" type="button" title="Idle" aria-label="Idle">😊</button>
-          <button class="shell-button" id="talkButton" type="button" title="Next Bubble" aria-label="Next Bubble">💬</button>
-          <button class="shell-button shell-button-danger" id="closePetButton" type="button" title="Close This Pet" aria-label="Close This Pet">🐾</button>
-          <button class="shell-button" id="scaleButton" type="button" title="Scale Pet" aria-label="Scale Pet">🔍</button>
-          <button class="shell-button" id="renamePetButton" type="button" title="Rename Pet" aria-label="Rename Pet">👤</button>
-          <button class="shell-button" id="editBubbleButton" type="button" title="Edit Bubble Text" aria-label="Edit Bubble Text">✏️</button>
-          <button class="shell-button" id="bubbleToggleButton" type="button" title="Toggle Bubbles" aria-label="Toggle Bubbles">🗨️</button>
-          <button class="shell-button" id="companionButton" type="button" title="Companion Mode" aria-label="Companion Mode">♡</button>
-          <button class="shell-button" id="pinButton" type="button" title="Always On Top" aria-label="Always On Top">📌</button>
-          <button class="shell-button" id="hideButton" type="button" title="Hide All To Tray" aria-label="Hide All To Tray">🙈</button>
-          <button class="shell-button shell-button-danger" id="quitButton" type="button" title="Quit App" aria-label="Quit App">✕</button>
-          <button class="action-button" data-action="running-right" type="button">Right</button>
-          <button class="action-button" data-action="running-left" type="button">Left</button>
-          <button class="action-button" data-action="waving" type="button">Wave</button>
-          <button class="action-button" data-action="jumping" type="button">Jump</button>
-          <button class="action-button" data-action="failed" type="button">Fail</button>
-          <button class="action-button" data-action="waiting" type="button">Wait</button>
-          <button class="action-button" data-action="running" type="button">Busy</button>
-          <button class="action-button" data-action="review" type="button">Review</button>
+        <div class="action-bar" aria-label="宠物动作">
+          <button class="shell-button" id="idleButton" type="button" title="待机" aria-label="待机">😊</button>
+          <button class="shell-button" id="talkButton" type="button" title="下一句气泡" aria-label="下一句气泡">💬</button>
+          <button class="shell-button shell-button-danger" id="closePetButton" type="button" title="关闭这只宠物" aria-label="关闭这只宠物">🐾</button>
+          <button class="shell-button" id="scaleButton" type="button" title="缩放宠物" aria-label="缩放宠物">🔍</button>
+          <button class="shell-button" id="settingsMenuButton" type="button" title="打开菜单" aria-label="打开菜单">&#9881;</button>
+          <button class="shell-button" id="renamePetButton" type="button" title="重命名宠物" aria-label="重命名宠物">👤</button>
+          <button class="shell-button" id="editBubbleButton" type="button" title="编辑气泡文字" aria-label="编辑气泡文字">✏️</button>
+          <button class="shell-button" id="bubbleToggleButton" type="button" title="开关气泡" aria-label="开关气泡">🗨️</button>
+          <button class="shell-button" id="companionButton" type="button" title="陪伴模式" aria-label="陪伴模式">♡</button>
+          <button class="shell-button" id="pinButton" type="button" title="置顶显示" aria-label="置顶显示">📌</button>
+          <button class="shell-button" id="hideButton" type="button" title="全部隐藏到托盘" aria-label="全部隐藏到托盘">🙈</button>
+          <button class="shell-button shell-button-danger" id="quitButton" type="button" title="退出应用" aria-label="退出应用">✕</button>
+          <button class="action-button" data-action="running-right" type="button">向右</button>
+          <button class="action-button" data-action="running-left" type="button">向左</button>
+          <button class="action-button" data-action="waving" type="button">挥手</button>
+          <button class="action-button" data-action="jumping" type="button">跳跃</button>
+          <button class="action-button" data-action="failed" type="button">失败</button>
+          <button class="action-button" data-action="waiting" type="button">等待</button>
+          <button class="action-button" data-action="running" type="button">忙碌</button>
+          <button class="action-button" data-action="review" type="button">检查</button>
         </div>
-        <div class="pet-picker" id="petPicker" aria-label="Choose pet"></div>
+        <div class="pet-picker" id="petPicker" aria-label="选择宠物"></div>
       </section>
     </main>
 
     <div class="bubble-editor-modal" id="bubbleEditorModal" aria-hidden="true">
       <div class="bubble-editor-backdrop" id="bubbleEditorBackdrop"></div>
-      <section class="bubble-editor-dialog" aria-label="Edit Bubble Text">
+      <section class="bubble-editor-dialog" aria-label="编辑气泡文字">
         <div class="bubble-editor-header">
-          <h2>Bubble Text</h2>
+          <h2>气泡文字</h2>
         </div>
         <div class="bubble-manager">
-          <div class="bubble-line-list" id="bubbleLineList" role="listbox" tabindex="0" aria-label="Bubble text lines"></div>
+          <div class="bubble-line-list" id="bubbleLineList" role="listbox" tabindex="0" aria-label="气泡文字列表"></div>
           <div class="bubble-line-actions">
-            <button class="editor-button" id="addBubbleLineButton" type="button">New</button>
-            <button class="editor-button" id="editBubbleLineButton" type="button">Edit</button>
-            <button class="editor-button" id="deleteBubbleLineButton" type="button">Delete</button>
+            <button class="editor-button" id="addBubbleLineButton" type="button">新增</button>
+            <button class="editor-button" id="editBubbleLineButton" type="button">编辑</button>
+            <button class="editor-button" id="deleteBubbleLineButton" type="button">删除</button>
           </div>
         </div>
         <div class="bubble-line-form" id="bubbleLineForm" hidden>
-          <label for="bubbleLineInput">Line text</label>
+          <label for="bubbleLineInput">台词内容</label>
           <input id="bubbleLineInput" type="text" maxlength="80" placeholder="输入一句台词">
           <div class="bubble-line-form-actions">
-            <button class="editor-button" id="confirmBubbleLineButton" type="button">OK</button>
-            <button class="editor-button" id="cancelBubbleLineButton" type="button">Cancel</button>
+            <button class="editor-button" id="confirmBubbleLineButton" type="button">确定</button>
+            <button class="editor-button" id="cancelBubbleLineButton" type="button">取消</button>
           </div>
         </div>
         <div class="bubble-editor-actions bubble-editor-footer">
-          <button class="editor-button" id="saveBubbleButton" type="button">Save</button>
-          <button class="editor-button" id="resetBubbleButton" type="button">Restore Default</button>
-          <button class="editor-button" id="cancelBubbleEditorButton" type="button">Cancel</button>
+          <button class="editor-button" id="saveBubbleButton" type="button">保存</button>
+          <button class="editor-button" id="resetBubbleButton" type="button">恢复默认</button>
+          <button class="editor-button" id="cancelBubbleEditorButton" type="button">取消</button>
         </div>
       </section>
     </div>
 
     <div class="name-editor-modal" id="nameEditorModal" aria-hidden="true">
       <div class="name-editor-backdrop" id="nameEditorBackdrop"></div>
-      <section class="name-editor-dialog" aria-label="Rename Pet">
+      <section class="name-editor-dialog" aria-label="重命名宠物">
         <div class="bubble-editor-header">
-          <h2>Pet Name</h2>
+          <h2>宠物名字</h2>
         </div>
         <div class="name-editor-form">
-          <label for="petNameInput">Name</label>
+          <label for="petNameInput">名字</label>
           <input id="petNameInput" type="text" maxlength="12" placeholder="输入新的名字">
-          <p class="name-editor-hint">最多 12 个字，留空可恢复默认名。</p>
+          <p class="name-editor-hint">最多 12 个字，留空可恢复默认名字。</p>
         </div>
         <div class="name-editor-actions">
-          <button class="editor-button" id="savePetNameButton" type="button">Save</button>
-          <button class="editor-button" id="resetPetNameButton" type="button">Default</button>
-          <button class="editor-button" id="cancelPetNameButton" type="button">Cancel</button>
+          <button class="editor-button" id="savePetNameButton" type="button">保存</button>
+          <button class="editor-button" id="resetPetNameButton" type="button">默认</button>
+          <button class="editor-button" id="cancelPetNameButton" type="button">取消</button>
         </div>
       </section>
     </div>
 
-    <script src="./pet-data.js"></script>
-    <script src="./app.js"></script>
+    <script src="./pet-data.js?v=20260828-bnd"></script>
+    <script src="./app.js?v=20260828-bnd"></script>
   </body>
 </html>

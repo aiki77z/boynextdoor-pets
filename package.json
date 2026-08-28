@@ -1,6 +1,6 @@
 {
   "name": "bnd-desktop-pets",
-  "version": "1.0.3",
+  "version": "1.1.0",
   "private": true,
   "description": "Electron desktop pet shell wired to six finalized BOYNEXTDOOR pet atlases.",
   "author": "BOYNEXTDOOR Pets",
@@ -8,6 +8,7 @@
   "scripts": {
     "start": "electron .",
     "dev": "electron .",
+    "serve:ipad": "python -m http.server 4173 --bind 0.0.0.0",
     "dist:win": "electron-builder --win --x64 --publish never",
     "dist:mac": "electron-builder --mac dmg zip"
   },
@@ -27,17 +28,22 @@
       "build/icon.ico",
       "build/icon.icns",
       "index.html",
+      "ipad.html",
+      "ipad-memo.css",
+      "ipad-memo.js",
       "main.js",
+      "manifest.webmanifest",
       "package.json",
       "pet-data.js",
       "preload.js",
       "styles.css",
-      "hatch-runs/catbbi/final/spritesheet.webp",
-      "hatch-runs/dalring/final/spritesheet.webp",
-      "hatch-runs/myngmyng/final/spritesheet.webp",
-      "hatch-runs/hantatpung/final/spritesheet.webp",
-      "hatch-runs/312/final/spritesheet.webp",
-      "hatch-runs/woonbaby/final/spritesheet.webp"
+      "sw.js",
+      "catbbi/spritesheet.webp",
+      "dalring/spritesheet.webp",
+      "myngmyng/spritesheet.webp",
+      "hantatpung/spritesheet.webp",
+      "312/spritesheet.webp",
+      "woonbaby/spritesheet.webp"
     ],
     "extraResources": [
       {
